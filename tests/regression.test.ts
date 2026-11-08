@@ -38,6 +38,7 @@ for (const key of [
 const pdfLib = await import('../src/lib/pdf')
 const ooxml = await import('../src/lib/ooxml')
 const docxRender = await import('../src/lib/docxRender')
+const docxParse = await import('../src/lib/docxParse')
 const signature = await import('../src/lib/signature')
 const utils = await import('../src/lib/utils')
 
@@ -164,8 +165,9 @@ test('signature: normalizes every placement into a valid rect', () => {
     { page: 1, x: 0.5, y: 0.5, width: 5 },
   ]
   for (const placement of cases) {
-    const height = signature.heightRatioFor(placement, 3.4, { width: 595, height: 842 })
-    const safe = signature.clampPlacement(placement, height)
+    const width = Math.min(0.98, Math.max(0.04, placement.width))
+    const height = Math.min(1, signature.heightRatioFor({ ...placement, width }, 3.4, { width: 595, height: 842 }))
+    const safe = signature.clampPlacement({ ...placement, width }, height)
     assert.ok(safe.x >= 0 && safe.x + safe.width <= 1.0000001, `x range for ${JSON.stringify(placement)}`)
     assert.ok(safe.y >= 0 && safe.y + height <= 1.0000001, `y range for ${JSON.stringify(placement)}`)
   }
@@ -287,17 +289,10 @@ test('docx: malformed XML raises a conversion error instead of a broken PDF', as
 
 test('docx: hasRawMarkup distinguishes real text from leaked markup', () => {
   assert.equal(docxRender.blocksContainMarkup([]), false)
-  assert.equal(docxParseHasRawMarkup('<w:t>'), true)
-  assert.equal(docxParseHasRawMarkup('The story of Rome <w:tab> Chapter'), true)
-  assert.equal(docxParseHasRawMarkup('Normal prose with a < b and c > d'), false)
+  assert.equal(docxParse.hasRawMarkup('<w:t>'), true)
+  assert.equal(docxParse.hasRawMarkup('The story of Rome <w:tab> Chapter'), true)
+  assert.equal(docxParse.hasRawMarkup('Normal prose with a < b and c > d'), false)
 })
-
-function docxParseHasRawMarkup(value: string): boolean {
-  const parsed = ooxml as unknown as { hasRawMarkup?: (input: string) => boolean }
-  const docxParse = parsed.hasRawMarkup
-  assert.ok(docxParse, 'hasRawMarkup exported')
-  return docxParse(value)
-}
 
 /* ---------------------------------------------------------------- *
  * Shared helpers

@@ -52,8 +52,10 @@ export async function signPdfWithPlacement(
   page: PageSize,
   aspect: number,
 ): Promise<Blob> {
-  const height = heightRatioFor(placement, aspect, page)
-  const safe = clampPlacement(placement, height)
+  // Clamp the width first so the aspect ratio survives an out-of-range value.
+  const width = Math.min(0.98, Math.max(0.04, placement.width))
+  const height = heightRatioFor({ ...placement, width }, aspect, page)
+  const safe = clampPlacement({ ...placement, width }, height)
   return applyImageStamps(file, [
     { page: safe.page, x: safe.x, y: safe.y, width: safe.width, height, pngBytes },
   ])
