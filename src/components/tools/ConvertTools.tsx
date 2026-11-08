@@ -655,7 +655,7 @@ export function ConvertToTool({ tool }: { tool: ToolDefinition }) {
           images.push({ bytes, type: isPng ? ('png' as const) : ('jpg' as const) })
         }
         const blob = await imagesToPdf(images, {
-          pageSize: layout.pageSize === 'letter' ? 'letter' : layout.pageSize === 'fit' ? 'fit' : 'a4',
+          pageSize: layout.pageSize === 'letter' ? 'letter' : String(layout.pageSize) === 'fit' ? 'fit' : 'a4',
           orientation: layout.orientation === 'landscape' ? 'landscape' : layout.orientation === 'portrait' ? 'portrait' : 'auto',
           margin: 24,
           fitMode: 'contain',

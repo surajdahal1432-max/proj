@@ -41,7 +41,7 @@ import { UploadDropzone } from '@/components/UploadDropzone'
 import { ResultPanel, type ResultFile } from '@/components/ResultPanel'
 import { Button } from '@/components/ui/button'
 import { Badge, Spinner } from '@/components/ui/feedback'
-import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@/components/ui/controls'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@/components/ui/controls'
 import { Tabs, TabsContent, TabsList, TabsTrigger, useToast } from '@/components/ui/overlays'
 import { useRecordHistory } from '@/hooks/useRecordHistory'
 

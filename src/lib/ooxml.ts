@@ -1,4 +1,4 @@
-import { Document, HeadingLevel, Packer, Paragraph, TextRun, AlignmentType } from 'docx'
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx'
 import pptxgen from 'pptxgenjs'
 import JSZip from 'jszip'
 

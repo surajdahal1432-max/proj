@@ -38,7 +38,6 @@ export async function loadPdf(source: ArrayBuffer | Uint8Array, options: LoadOpt
     cMapUrl: `${ASSET_BASE}cmaps/`,
     cMapPacked: true,
     useSystemFonts: true,
-    isEvalSupported: false,
   })
 
   try {
@@ -68,7 +67,7 @@ export async function loadPdfFromFile(file: File | Blob, password?: string): Pro
 export async function getPageCount(source: ArrayBuffer | Uint8Array, password?: string): Promise<number> {
   const doc = await loadPdf(source, { password })
   const count = doc.numPages
-  await doc.destroy()
+  await closePdf(doc)
   return count
 }
 
@@ -189,11 +188,16 @@ interface RawTextItem {
   hasEOL?: boolean
 }
 
+function isRawTextItem(item: unknown): item is RawTextItem {
+  const candidate = item as RawTextItem
+  return typeof candidate?.str === 'string' && Array.isArray(candidate?.transform)
+}
+
 /** Extract text from a page, grouped into visual lines with coordinates. */
 export async function extractPageText(page: PDFPageProxy): Promise<PageText> {
   const viewport = page.getViewport({ scale: 1 })
   const content = await page.getTextContent()
-  const items = content.items.filter((item): item is RawTextItem => typeof (item as RawTextItem).str === 'string')
+  const items = content.items.filter(isRawTextItem)
 
   const rows: { y: number; height: number; items: RawTextItem[] }[] = []
   for (const item of items) {
@@ -272,12 +276,25 @@ export async function getPdfSummary(
     const metadata = await doc.getMetadata().catch(() => null)
     const info = (metadata?.info ?? {}) as { Title?: string }
     const result = { pages: doc.numPages, encrypted: false, title: info.Title }
-    await doc.destroy()
+    await closePdf(doc)
     return result
   } catch (error) {
     if (error instanceof PdfPasswordError) {
       return { pages: 0, encrypted: true }
     }
     throw error
+  }
+}
+
+
+/** PDF.js 6 exposes cleanup() on the document proxy; release it safely. */
+type ClosablePdfDocument = { cleanup: (keepLoadedFonts?: boolean) => Promise<unknown> }
+
+export async function closePdf(doc: ClosablePdfDocument | null | undefined): Promise<void> {
+  if (!doc) return
+  try {
+    await doc.cleanup()
+  } catch {
+    /* document already released */
   }
 }

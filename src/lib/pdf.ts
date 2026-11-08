@@ -8,7 +8,7 @@ import {
   rgb,
   type RGB,
 } from 'pdf-lib'
-import { extractPageText, loadPdf, renderPageToJpegBytes, PdfPasswordError } from './pdfjs'
+import { closePdf, extractPageText, loadPdf, renderPageToJpegBytes, PdfPasswordError } from './pdfjs'
 
 export interface PdfResultFile {
   name: string
@@ -56,7 +56,7 @@ export async function loadPdfLib(file: File | Blob, options: LoadPdfLibOptions =
 
 async function assertReadable(bytes: Uint8Array, password?: string): Promise<void> {
   const doc = await loadPdf(bytes, { password, copy: false })
-  await doc.destroy()
+  await closePdf(doc)
 }
 
 export async function savePdfBlob(doc: PDFDocument): Promise<Blob> {
@@ -395,7 +395,7 @@ export async function rasterizePdf(file: File | Blob, options: RasterizeOptions 
       options.onProgress?.(index, doc.numPages)
     }
   } finally {
-    await doc.destroy()
+    await closePdf(doc)
   }
   return pages
 }
@@ -652,7 +652,7 @@ export async function redactPdf(
       page.cleanup()
     }
   } finally {
-    await source.destroy()
+    await closePdf(source)
   }
 
   return { blob: await savePdfBlob(output), redactedPages: redactedPages.size, boxes: boxes.length, removedCharacters }
@@ -922,7 +922,7 @@ export async function readPdfText(file: File, password?: string): Promise<PdfTex
       pages,
     }
   } finally {
-    await doc.destroy()
+    await closePdf(doc)
   }
 }
 

@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Check,
   Cloud,
-  Download,
   FileText,
   History,
   Menu,

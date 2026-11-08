@@ -221,7 +221,7 @@ export async function comparisonReportPdf(
   ]
 
   for (const page of result.pages) {
-    blocks.push({ style: 'h2' as const, text: `Page ${page.page}` })
+    blocks.push({ style: 'title' as const, text: `Page ${page.page}` })
     for (const line of page.lines) {
       if (line.kind === 'same' && line.tokens.every((token) => token.kind === 'same')) {
         blocks.push({ style: 'body' as const, text: line.text })

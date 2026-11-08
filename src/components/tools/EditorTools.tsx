@@ -439,7 +439,7 @@ export function EditorTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <>
               <PageStepper pageIndex={pageIndex} pageCount={pageCount} onChange={setPageIndex} />
@@ -679,7 +679,7 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <>
               <PageStepper pageIndex={pageIndex} pageCount={pageCount} onChange={setPageIndex} />
@@ -767,7 +767,7 @@ export function WatermarkTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <div className="rounded-xl border border-border/60 bg-card/40 p-8">
               <div className="relative mx-auto flex h-64 max-w-md items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-white">
@@ -889,7 +889,7 @@ export function RedactTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <>
               <PageStepper pageIndex={pageIndex} pageCount={doc?.numPages ?? 0} onChange={setPageIndex} />
@@ -1025,7 +1025,7 @@ export function FormsTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && inspect(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && inspect(files[0])} />
           ) : (
             <ToolPanel title="Detected fields" description={loading ? 'Inspecting the AcroForm…' : `${fields.length} field(s) in this document.`}>
               {loading && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading fields…</p>}
@@ -1143,7 +1143,7 @@ export function EncryptTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <ToolPanel title="Document" description={`${file.name} · ${formatBytes(file.size)}`}>
               <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
@@ -1219,7 +1219,7 @@ export function DecryptTool({ tool }: { tool: ToolDefinition }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           {!file ? (
-            <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
+            <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setFile(files[0])} />
           ) : (
             <ToolPanel title="Protected document" description={file.name}>
               <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
@@ -1309,7 +1309,7 @@ export function CompareTool({ tool }: { tool: ToolDefinition }) {
                 <Button variant="ghost" size="sm" onClick={() => setLeft(null)}>Change</Button>
               </div>
             ) : (
-              <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setLeft(files[0])} compact />
+              <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setLeft(files[0])} compact />
             )}
           </div>
           <div className="space-y-2">
@@ -1320,7 +1320,7 @@ export function CompareTool({ tool }: { tool: ToolDefinition }) {
                 <Button variant="ghost" size="sm" onClick={() => setRight(null)}>Change</Button>
               </div>
             ) : (
-              <UploadDropzone accept={[tool.accept]} multiple={false} onFiles={(files) => files[0] && setRight(files[0])} compact />
+              <UploadDropzone accept={tool.accept} multiple={false} onFiles={(files) => files[0] && setRight(files[0])} compact />
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@ import { blocksToPdf, textToBlocks, type TextBlock, type TextPdfOptions } from '
 import { buildDocx, buildPptx, parseHtmlToBlocks, parseMarkdown, readDocx, readHtmlText, readPptx, type DocxParagraph } from './ooxml'
 import { buildXlsx, readXlsx, rowsToCsv, type CellValue } from './xlsx'
 import { baseName, downloadBlob } from './utils'
+import { closePdf } from './pdfjs'
 
 export interface ConversionOptions {
   password?: string
@@ -222,15 +223,15 @@ export async function pdfToImages(
       } else {
         const pdfPage = await doc.getPage(index + 1)
         const { renderPageToDataUrl } = await import('./pdfjs')
-        const dataUrl = await renderPageToDataUrl(pdfPage, { dpi, format: 'png' })
-        const response = await fetch(dataUrl)
+        const rendered = await renderPageToDataUrl(pdfPage, { scale: Math.min(4, dpi / 72), format: 'png' })
+        const response = await fetch(rendered.dataUrl)
         const blob = await response.blob()
         results.push({ name: `${base}-page-${index + 1}.png`, blob })
         pdfPage.cleanup()
       }
     }
   } finally {
-    await doc.destroy()
+    await closePdf(doc)
   }
   return results
 }
@@ -276,7 +277,7 @@ export async function docxToPdf(file: File, layout: TextPdfOptions = {}): Promis
 }
 
 export async function xlsxToPdf(file: File, layout: TextPdfOptions = {}): Promise<NamedBlob> {
-  const rows = await readXlsx(file)
+  const rows = (await readXlsx(file)).map((row) => row.map((cell) => (cell == null ? '' : String(cell))))
   if (!rows.length) throw new Error('This spreadsheet has no readable cells.')
   const blocks: TextBlock[] = [{ style: 'title', text: baseName(file.name) }, { style: 'table', text: '', rows }]
   const blob = await blocksToPdf(blocks, { ...layout, pageSize: layout.pageSize ?? 'a4', orientation: 'landscape' })

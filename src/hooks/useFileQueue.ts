@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { loadPdfFromFile, PdfPasswordError } from '@/lib/pdfjs'
-import { fileExtension } from '@/lib/utils'
+import { closePdf, loadPdfFromFile, PdfPasswordError } from '@/lib/pdfjs'
+import { extensionOf } from '@/lib/utils'
 
 export interface QueueFileResult {
   name: string
@@ -50,7 +50,7 @@ export function useFileQueue({ accept, multiple = false, detectPages = true }: U
       try {
         const doc = await loadPdfFromFile(entry.file)
         const pageCount = doc.numPages
-        void doc.destroy()
+        void closePdf(doc)
         return { ...entry, pageCount }
       } catch (error) {
         if (error instanceof PdfPasswordError) {
@@ -72,7 +72,7 @@ export function useFileQueue({ accept, multiple = false, detectPages = true }: U
 
       const accepted: QueueFile[] = []
       for (const file of allowed) {
-        const ext = fileExtension(file.name)
+        const ext = extensionOf(file.name)
         if (accept && accept.length > 0 && !accept.includes(ext)) {
           rejectedLocal.push({ name: file.name, reason: `.${ext || '?'} files are not supported here` })
           continue

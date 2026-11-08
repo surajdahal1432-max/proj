@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { loadPdfFromFile, renderThumbnail } from '@/lib/pdfjs'
+import { closePdf, loadPdfFromFile, renderThumbnail } from '@/lib/pdfjs'
 
 export interface ThumbnailState {
   thumbs: string[]
@@ -42,7 +42,7 @@ export function usePageThumbnails(file: File | null, maxWidth = 200): ThumbnailS
           if (cancelled) return
           setState({ thumbs: [...collected], pageCount: doc.numPages, loading: true, error: null })
         }
-        await doc.destroy()
+        await closePdf(doc)
         if (!cancelled) setState({ thumbs: collected, pageCount: doc.numPages, loading: false, error: null })
       } catch (error) {
         if (cancelled) return

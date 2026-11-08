@@ -191,13 +191,13 @@ function decryptBlock(input: Uint8Array, w: Uint8Array): Uint8Array {
 export function aesCbcEncryptNoPad(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
   const w = expandKey(key)
   const out = new Uint8Array(data.length)
-  let prev = iv.slice(0, 16)
+  let prev: Uint8Array = new Uint8Array(iv.subarray(0, 16))
   for (let offset = 0; offset < data.length; offset += 16) {
     const block = new Uint8Array(16)
     for (let i = 0; i < 16; i++) block[i] = data[offset + i] ^ prev[i]
     const encrypted = encryptBlock(block, w)
     out.set(encrypted, offset)
-    prev = encrypted
+    prev = new Uint8Array(encrypted)
   }
   return out
 }
@@ -205,7 +205,7 @@ export function aesCbcEncryptNoPad(data: Uint8Array, key: Uint8Array, iv: Uint8A
 export function aesCbcDecryptNoPad(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
   const w = expandKey(key)
   const out = new Uint8Array(data.length)
-  let prev = iv.slice(0, 16)
+  let prev: Uint8Array = new Uint8Array(iv.subarray(0, 16))
   for (let offset = 0; offset < data.length; offset += 16) {
     const block = data.slice(offset, offset + 16)
     const decrypted = decryptBlock(block, w)
@@ -369,7 +369,7 @@ function isStringObject(value: unknown): value is PDFString | PDFHexString {
 
 function stringBytes(value: PDFString | PDFHexString): Uint8Array {
   if (value instanceof PDFHexString) return value.asBytes()
-  return latin1Bytes(value.asText?.() ?? value.value ?? '')
+  return latin1Bytes(value.decodeText())
 }
 
 /* ------------------------------------------------------------------ *
@@ -535,7 +535,7 @@ function lookupBytes(doc: PDFDocument, dict: PDFDict, key: string): Uint8Array {
   const entry = dict.get(PDFName.of(key))
   const resolved = entry ? doc.context.lookup(entry) : undefined
   if (resolved instanceof PDFHexString) return resolved.asBytes()
-  if (resolved instanceof PDFString) return latin1Bytes(resolved.value)
+  if (resolved instanceof PDFString) return latin1Bytes(resolved.decodeText())
   return new Uint8Array(0)
 }
 
