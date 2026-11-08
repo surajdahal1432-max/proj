@@ -111,6 +111,16 @@ export function useFileQueue({ accept, multiple = false, detectPages = true }: U
     [accept, inspect, multiple],
   )
 
+  // Accept files handed over from another route (e.g. the homepage dropzone).
+  React.useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<File[]>).detail
+      if (Array.isArray(detail) && detail.length) void add(detail)
+    }
+    window.addEventListener(HANDOFF_EVENT, handler as EventListener)
+    return () => window.removeEventListener(HANDOFF_EVENT, handler as EventListener)
+  }, [add])
+
   const remove = React.useCallback((id: string) => {
     setFiles((current) => current.filter((entry) => entry.id !== id))
   }, [])
