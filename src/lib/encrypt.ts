@@ -471,12 +471,9 @@ function encryptIndirectObject(
     const dict = object.dict
     const contents = object instanceof PDFRawStream ? object.contents : object.getContents()
     const iv = randomBytes(16)
-    const encrypted = aesCbcEncryptNoPad(concat(iv, padPkcs7(contents)), fileKey, ZERO_IV)
-    // NOTE: stream encryption uses AES-CBC over (IV || padded data); the IV is
-    // prefixed to the ciphertext. Because our pure-JS CBC has no padding, apply
-    // PKCS#7 manually so every reader agrees on the byte layout.
+    // Stream layout is IV || AES-256-CBC(PKCS#7(contents)); our CBC routine has
+    // no padding, so PKCS#7 is applied explicitly for byte-exact compatibility.
     const payload = concat(iv, encryptStreamBody(contents, fileKey, iv))
-    void encrypted
 
     walkObject(dict, (value) => {
       if (isStringObject(value)) {
