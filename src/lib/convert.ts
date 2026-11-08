@@ -1,6 +1,7 @@
 import { pageTextToPlain, readPdfText, rasterizePdf, type PdfTextDocument } from './pdf'
 import { blocksToPdf, textToBlocks, type TextBlock, type TextPdfOptions } from './textPdf'
-import { buildDocx, buildPptx, parseHtmlToBlocks, parseMarkdown, readDocx, readHtmlText, readPptx, type DocxParagraph } from './ooxml'
+import { buildDocx, buildPptx, parseDocxFile, parseHtmlToBlocks, parseMarkdown, readDocx, readHtmlText, readPptx, type DocxParagraph } from './ooxml'
+import { renderDocxToPdf } from './docxRender'
 import { buildXlsx, readXlsx, rowsToCsv, type CellValue } from './xlsx'
 import { baseName, downloadBlob } from './utils'
 import { closePdf } from './pdfjs'
@@ -265,13 +266,17 @@ function docxParagraphsToBlocks(paragraphs: DocxParagraph[]): TextBlock[] {
 }
 
 export async function docxToPdf(file: File, layout: TextPdfOptions = {}): Promise<NamedBlob> {
-  const { paragraphs } = await readDocx(file)
-  if (!paragraphs.some((paragraph) => paragraph.text.trim())) {
+  // Structured parse first: this walks word/document.xml with a real XML DOM
+  // (namespaces honoured) instead of scraping markup with regular expressions,
+  // which is what previously leaked `<w:t>` / `<w:tab>` into the PDF text.
+  const parsed = await parseDocxFile(file)
+  if (!parsed.blocks.length) {
     throw new Error('This Word document appears to be empty.')
   }
-  const blob = await blocksToPdf(docxParagraphsToBlocks(paragraphs), {
-    ...layout,
+  const blob = await renderDocxToPdf(parsed, {
     title: layout.title || baseName(file.name),
+    baseFontSize: layout.baseFontSize,
+    margin: layout.margin,
   })
   return { name: `${baseName(file.name)}.pdf`, blob }
 }
