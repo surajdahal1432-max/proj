@@ -1,5 +1,5 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
-import { sanitizeWinAnsi } from './pdf'
+import { blobFromBytes, sanitizeWinAnsi } from './pdf'
 import type { DocxBlock, DocxParagraphBlock, DocxRun, DocxSection, ParsedDocx, RGB } from './docxParse'
 
 /**
@@ -119,7 +119,7 @@ class DocxRenderer {
       }
     }
 
-    return new Blob([await this.doc.save()], { type: 'application/pdf' })
+    return blobFromBytes(await this.doc.save())
   }
 
   private async loadFonts() {
@@ -300,6 +300,8 @@ class DocxRenderer {
       const totalWidth = pieces.reduce((sum, piece) => sum + piece.font.widthOfTextAtSize(piece.text, piece.size), 0)
       const availableWidth = this.contentWidth - leftPad
       let x = this.marginLeft + leftPad
+      // Word's first-line indent (negative values produce a hanging indent).
+      if (index === 0 && firstLine) x += firstLine
       if (align === 'center') x += Math.max(0, (availableWidth - totalWidth) / 2)
       else if (align === 'right') x += Math.max(0, availableWidth - totalWidth)
 

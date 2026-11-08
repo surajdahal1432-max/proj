@@ -1,6 +1,6 @@
 import { pageTextToPlain, readPdfText, rasterizePdf, type PdfTextDocument } from './pdf'
 import { blocksToPdf, textToBlocks, type TextBlock, type TextPdfOptions } from './textPdf'
-import { buildDocx, buildPptx, parseDocxFile, parseHtmlToBlocks, parseMarkdown, readDocx, readHtmlText, readPptx, type DocxParagraph } from './ooxml'
+import { buildDocx, buildPptx, parseDocxFile, parseHtmlToBlocks, parseMarkdown, readHtmlText, readPptx, type DocxParagraph } from './ooxml'
 import { renderDocxToPdf } from './docxRender'
 import { buildXlsx, readXlsx, rowsToCsv, type CellValue } from './xlsx'
 import { baseName, downloadBlob } from './utils'

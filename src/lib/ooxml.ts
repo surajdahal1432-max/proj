@@ -143,7 +143,8 @@ export async function readDocx(file: File | Blob): Promise<DocxReadResult> {
   const parsed = await parseDocxFile(file)
   const paragraphs: DocxParagraph[] = parsed.paragraphs.map((block) => ({
     text: block.text,
-    style: block.style,
+    // DocxParagraph has no 'numbered' style; numbered lists render as bullets.
+    style: block.style === 'numbered' ? 'bullet' : block.style,
     bold: block.runs.some((run) => run.bold),
     italic: block.runs.some((run) => run.italic),
   }))
