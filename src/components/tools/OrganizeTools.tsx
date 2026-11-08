@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Label, Progress, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/controls'
 import { Badge, Alert, Spinner } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/overlays'
-import { baseName, cn, downloadBlob, formatBytes, parsePageRanges } from '@/lib/utils'
+import { baseName, cn, formatBytes, parsePageRanges } from '@/lib/utils'
 import { extractPagesToPdf, mergePdfs, reorderPages, rotatePdf, splitPdfGroups } from '@/lib/pdf'
 import { zipBlobs } from '@/lib/zip'
 
