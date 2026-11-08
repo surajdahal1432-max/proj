@@ -55,12 +55,14 @@ const ALERT_STYLES = {
 export function Alert({
   variant = 'info',
   title,
+  description,
   children,
   action,
   className,
 }: {
   variant?: keyof typeof ALERT_STYLES
   title: string
+  description?: string
   children?: React.ReactNode
   action?: React.ReactNode
   className?: string
@@ -75,6 +77,9 @@ export function Alert({
       <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', style.iconClass)} />
       <div className="min-w-0 flex-1">
         <p className="font-medium leading-snug">{title}</p>
+        {description ? (
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        ) : null}
         {children ? <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{children}</div> : null}
       </div>
       {action}
