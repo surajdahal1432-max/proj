@@ -1,6 +1,7 @@
 import {
   PDFDocument,
   PDFFont,
+  PDFName,
   PDFPage,
   StandardFonts,
   degrees,
