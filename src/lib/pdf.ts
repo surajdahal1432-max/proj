@@ -861,14 +861,13 @@ export async function toPdfA(file: File, onProgress?: (done: number, total: numb
   </rdf:RDF>
 </x:xmpmeta>
 <?xpacket end="w"?>`
-  doc.setMetadata
   // pdf-lib does not expose XMP directly; attach it through the catalog.
   const metadataStream = doc.context.stream(xmp, {
     Type: 'Metadata',
     Subtype: 'XML',
   })
   const metadataRef = doc.context.register(metadataStream)
-  doc.catalog.set(doc.context.obj('Metadata') as never, metadataRef as never)
+  doc.catalog.set(PDFName.of('Metadata'), metadataRef)
 
   for (const page of pages) {
     const image = await doc.embedJpg(page.bytes)
