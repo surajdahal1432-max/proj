@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { cn, formatBytes, relativeTime } from '@/lib/utils'
+import { cn, formatBytes, formatRelativeTime } from '@/lib/utils'
 import { useAppStore } from '@/store/useAppStore'
 import { TOOLS } from '@/lib/tools'
 import { Button } from '@/components/ui/button'
@@ -252,7 +252,7 @@ export function HistoryDrawer() {
               </div>
               <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{formatBytes(entry.outputSize)}</span>
-                <span>{relativeTime(entry.createdAt)}</span>
+                <span>{formatRelativeTime(entry.createdAt)}</span>
               </div>
               <div className="mt-2 flex items-center gap-1.5">
                 <Button variant="ghost" size="sm" asChild>
