@@ -606,45 +606,87 @@ export function ExtractTool({ tool }: { tool: ToolDefinition }) {
   const { toast } = useToast()
   const record = useRecordHistory()
   const file = queue.single?.file ?? null
-  const { thumbs, pageCount } = usePageThumbnails(file, 180)
+  const { thumbs, pageCount, loading, error } = usePageThumbnails(file, 180)
   const [selected, setSelected] = React.useState<number[]>([])
+  const [rangeInput, setRangeInput] = React.useState('')
+  const [rangeError, setRangeError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [results, setResults] = React.useState<ResultFile[]>([])
 
   React.useEffect(() => {
     setSelected([])
+    setRangeInput('')
+    setRangeError(null)
     setResults([])
   }, [file])
 
+  // Keep the selection valid if the document changes size.
+  React.useEffect(() => {
+    if (!pageCount) return
+    setSelected((current) => current.filter((index) => index < pageCount))
+  }, [pageCount])
+
+  // Canonical export order: deduplicated, ascending, inside the document.
+  const ordered = React.useMemo(
+    () => [...new Set(selected)].filter((index) => index >= 0 && index < pageCount).sort((a, b) => a - b),
+    [selected, pageCount],
+  )
+
   const toggle = (index: number) => {
-    setSelected((current) =>
-      current.includes(index) ? current.filter((value) => value !== index) : [...current, index].sort((a, b) => a - b),
-    )
+    setSelected((current) => (current.includes(index) ? current.filter((value) => value !== index) : [...current, index]))
+  }
+
+  const addRange = () => {
+    if (!pageCount) {
+      setRangeError('Add a PDF first.')
+      return
+    }
+    const parsed = parsePageRanges(rangeInput, pageCount)
+    if (!parsed.length) {
+      setRangeError('Use pages like 1-3, 5, 8-12.')
+      return
+    }
+    setRangeError(null)
+    setSelected((current) => [...new Set([...current, ...parsed])])
+    setRangeInput('')
   }
 
   const run = async (asZip: boolean) => {
-    if (!file || !selected.length) {
+    if (!file || !ordered.length) {
       toast({ title: 'Select at least one page', variant: 'warning' })
       return
     }
     setBusy(true)
     setResults([])
     try {
-      const blob = await extractPagesToPdf(file, selected)
-      const name = `${baseName(file.name)}-pages-${selected.map((index) => index + 1).join('-')}.pdf`
+      if (asZip) {
+        const entries: { name: string; blob: Blob }[] = []
+        for (const index of ordered) {
+          const blob = await extractPagesToPdf(file, [index])
+          entries.push({ name: `${baseName(file.name)}-page-${index + 1}.pdf`, blob })
+        }
+        const zip = await zipBlobs(entries)
+        const zipName = `${baseName(file.name)}-pages.zip`
+        setResults([{ name: zipName, blob: zip, size: zip.size }])
+        record(tool, file.name, { name: zipName, size: zip.size })
+        toast({
+          title: 'Pages extracted',
+          description: `${entries.length} separate PDF${entries.length === 1 ? '' : 's'} bundled into a ZIP archive.`,
+          variant: 'success',
+        })
+        return
+      }
+      const blob = await extractPagesToPdf(file, ordered)
+      const name = `${baseName(file.name)}-pages-${ordered.map((index) => index + 1).join('-')}.pdf`
       setResults([{ name, blob, size: blob.size }])
       record(tool, file.name, { name, size: blob.size })
-      if (asZip) {
-        const zip = await zipBlobs([{ name, blob }])
-        downloadBlob(zip, `${baseName(file.name)}-extracted.zip`)
-      }
       toast({
         title: 'Pages extracted',
-        description: `${selected.length} page${selected.length === 1 ? '' : 's'} exported.`,
+        description: `Page${ordered.length === 1 ? '' : 's'} ${ordered.map((index) => index + 1).join(', ')} exported in order.`,
         variant: 'success',
       })
-    } catch (error) {
-      toast({ title: 'Extraction failed', description: errorMessage(error), variant: 'error' })
+    } catch (err) {
+      toast({ title: 'Extraction failed', description: errorMessage(err), variant: 'error' })
     } finally {
       setBusy(false)
     }
@@ -659,12 +701,38 @@ export function ExtractTool({ tool }: { tool: ToolDefinition }) {
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Selected</span>
             <span className="font-semibold">
-              {selected.length}
+              {ordered.length}
               {pageCount ? ` / ${pageCount}` : ''}
             </span>
           </div>
+          <div className="space-y-1.5">
+            <label htmlFor="extract-range" className="text-xs font-medium">
+              Page ranges
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="extract-range"
+                value={rangeInput}
+                onChange={(event) => setRangeInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') addRange()
+                }}
+                placeholder="1-3, 5, 8-12"
+                className="min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+              />
+              <Button variant="outline" size="sm" onClick={addRange} disabled={!pageCount}>
+                Add
+              </Button>
+            </div>
+            {rangeError ? <p className="text-xs text-destructive">{rangeError}</p> : null}
+          </div>
           <div className="flex flex-wrap gap-1.5">
-            <Button variant="outline" size="sm" onClick={() => setSelected(Array.from({ length: pageCount }, (_, i) => i))}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pageCount}
+              onClick={() => setSelected(Array.from({ length: pageCount }, (_, index) => index))}
+            >
               Select all
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setSelected([])}>
@@ -673,15 +741,18 @@ export function ExtractTool({ tool }: { tool: ToolDefinition }) {
           </div>
           <ProcessBar
             onRun={() => run(false)}
-            disabled={!selected.length}
+            disabled={!ordered.length}
             busy={busy}
             label="Extract pages"
             secondary={
-              <Button variant="outline" size="sm" disabled={!selected.length || busy} onClick={() => run(true)}>
+              <Button variant="outline" size="sm" disabled={!ordered.length || busy} onClick={() => run(true)}>
                 <Download className="h-3.5 w-3.5" /> ZIP
               </Button>
             }
           />
+          <p className="text-xs text-muted-foreground">
+            One PDF keeps the selected order. ZIP saves every selected page as its own PDF.
+          </p>
         </ToolPanel>
       }
     >
@@ -693,44 +764,61 @@ export function ExtractTool({ tool }: { tool: ToolDefinition }) {
         compact={Boolean(file)}
       />
 
-      {file && pageCount ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-          {Array.from({ length: pageCount }, (_, index) => {
-            const active = selected.includes(index)
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => toggle(index)}
-                className={cn(
-                  'group relative overflow-hidden rounded-lg border bg-card text-left transition-all',
-                  active ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-primary/40',
-                )}
-                aria-pressed={active}
-              >
-                <div className="flex aspect-[3/4] items-center justify-center overflow-hidden bg-muted/40 p-1.5">
-                  {thumbs[index] ? (
-                    <img src={thumbs[index]} alt={`Page ${index + 1}`} className="max-h-full max-w-full rounded-sm" />
-                  ) : (
-                    <div className="h-full w-full animate-pulse rounded bg-muted" />
-                  )}
-                </div>
-                <div className="flex items-center justify-between border-t border-border px-2 py-1">
-                  <span className="text-[11px] font-semibold">Page {index + 1}</span>
-                  <span
-                    className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded-full border text-[9px]',
-                      active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-transparent',
-                    )}
-                  >
-                    ✓
-                  </span>
-                </div>
-              </button>
-            )
-          })}
+      {file && error ? (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
         </div>
-      ) : (
+      ) : null}
+
+      {file && pageCount ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {loading
+              ? `Rendering previews… ${thumbs.length}/${pageCount}`
+              : `${pageCount} page${pageCount === 1 ? '' : 's'} · click a page to select it`}
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+            {Array.from({ length: pageCount }, (_, index) => {
+              const active = selected.includes(index)
+              const thumb = thumbs[index]
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => toggle(index)}
+                  aria-pressed={active}
+                  aria-label={`Page ${index + 1}${active ? ' (selected)' : ''}`}
+                  className={cn(
+                    'group relative overflow-hidden rounded-lg border bg-card text-left transition-all',
+                    active ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-primary/40',
+                  )}
+                >
+                  <div className="flex aspect-[3/4] items-center justify-center overflow-hidden bg-muted/40 p-1.5">
+                    {thumb ? (
+                      <img src={thumb} alt={`Page ${index + 1}`} className="max-h-full max-w-full rounded-sm" />
+                    ) : (
+                      <span className={cn('text-xs text-muted-foreground', loading && 'animate-pulse')}>
+                        {loading ? '…' : `Page ${index + 1}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border px-2 py-1">
+                    <span className="text-[11px] font-semibold">Page {index + 1}</span>
+                    <span
+                      className={cn(
+                        'flex h-4 w-4 items-center justify-center rounded-full border text-[9px]',
+                        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-transparent',
+                      )}
+                    >
+                      ✓
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : file ? null : (
         <EmptyQueueHint>Add a PDF to see its pages.</EmptyQueueHint>
       )}
 
