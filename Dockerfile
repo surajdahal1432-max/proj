@@ -1,6 +1,6 @@
 # ---- build stage ----------------------------------------------------------
 FROM node:26-alpine AS build
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache && apk add --no-cache --upgrade 'zlib>=1.4'
 WORKDIR /app
 
 COPY package*.json ./
@@ -14,7 +14,7 @@ RUN npm run build
 # generic static server) because the PDF.js worker is an ES module served as
 # .mjs and must be returned with a JavaScript MIME type, plus gzip support.
 FROM node:26-alpine AS runtime
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache && apk add --no-cache --upgrade 'zlib>=1.4'
 WORKDIR /app
 ENV NODE_ENV=production
 
