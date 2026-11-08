@@ -23,6 +23,7 @@ import {
   addPageNumbers,
   applyImageStamps,
   applyTextAnnotations,
+  blobFromBytes,
   fillFormFields,
   inspectFormFields,
   redactPdf,
@@ -827,7 +828,7 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
           <ToolPanel title="Draw signature" description="Vector-quality ink, exported as a transparent stamp.">
             <SignaturePad
               onChange={(bytes) => {
-                void adoptSignature(bytes)
+                if (bytes) void adoptSignature(bytes)
               }}
             />
           </ToolPanel>
