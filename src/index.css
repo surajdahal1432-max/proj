@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 44% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 44% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 44% 10%;
+    --primary: 243 72% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 224 40% 16%;
+    --muted: 220 20% 96%;
+    --muted-foreground: 220 10% 44%;
+    --accent: 172 66% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 74% 34%;
+    --success-foreground: 0 0% 100%;
+    --border: 220 16% 90%;
+    --input: 220 16% 88%;
+    --ring: 243 72% 56%;
+    --radius: 0.85rem;
+  }
+
+  .dark {
+    --background: 225 44% 5%;
+    --foreground: 213 33% 96%;
+    --card: 225 34% 8%;
+    --card-foreground: 213 33% 96%;
+    --popover: 226 36% 9%;
+    --popover-foreground: 213 33% 96%;
+    --primary: 244 82% 68%;
+    --primary-foreground: 225 44% 6%;
+    --secondary: 224 28% 14%;
+    --secondary-foreground: 213 33% 96%;
+    --muted: 224 26% 13%;
+    --muted-foreground: 217 16% 66%;
+    --accent: 172 72% 46%;
+    --accent-foreground: 225 44% 6%;
+    --destructive: 0 74% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 64% 46%;
+    --success-foreground: 225 44% 6%;
+    --border: 223 24% 18%;
+    --input: 223 24% 20%;
+    --ring: 244 82% 68%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
+  }
+
+  ::selection {
+    @apply bg-primary/25;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-2 border-solid border-transparent bg-muted-foreground/30 bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply rounded-xl border border-border/80 bg-card/70 backdrop-blur-xl;
+  }
+
+  .glass-header {
+    @apply border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-br from-primary via-primary to-accent bg-clip-text text-transparent;
+  }
+
+  .grid-backdrop {
+    background-image: linear-gradient(to right, hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 78%);
+  }
+
+  .tool-card {
+    @apply relative overflow-hidden rounded-xl border border-border/80 bg-card p-5 text-left transition-all duration-300;
+  }
+  .tool-card:hover {
+    @apply -translate-y-0.5 border-primary/40 shadow-soft;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground;
+  }
+
+  .checker {
+    background-image: linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%),
+      linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%),
+      linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .animate-delay-1 {
+    animation-delay: 60ms;
+  }
+  .animate-delay-2 {
+    animation-delay: 120ms;
+  }
+  .animate-delay-3 {
+    animation-delay: 180ms;
+  }
+  .animate-delay-4 {
+    animation-delay: 240ms;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
