@@ -1,6 +1,7 @@
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx'
 import pptxgen from 'pptxgenjs'
 import JSZip from 'jszip'
+import { parseDocumentXml, type ParsedDocx } from './docxParse'
 
 /* ------------------------------------------------------------------ *
  * Word (.docx)
@@ -108,39 +109,44 @@ function decodeXmlEntities(value: string): string {
     .replace(/&amp;/g, '&')
 }
 
-export async function readDocx(file: File | Blob): Promise<DocxReadResult> {
-  const zip = await JSZip.loadAsync(file)
-  const documentXml = await zip.file('word/document.xml')?.async('string')
-  if (!documentXml) throw new Error('This .docx file has no document body.')
-
-  const paragraphs: DocxParagraph[] = []
-  for (const match of documentXml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g)) {
-    const body = match[1]
-    const styleMatch = /<w:pStyle[^>]*w:val="([^"]+)"/.exec(body)
-    const styleName = (styleMatch?.[1] ?? '').toLowerCase()
-    const runs = [...body.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map((run) => decodeXmlEntities(run[1]))
-    const text = runs.join('').replace(/\s+/g, ' ').trim()
-    if (!text) {
-      paragraphs.push({ text: '' })
-      continue
-    }
-    const isList = /<w:numPr\b/.test(body)
-    const bold = /<w:b\b/.test(body)
-    const italic = /<w:i\b/.test(body)
-    const style: DocxParagraph['style'] = styleName.includes('title')
-      ? 'title'
-      : styleName.includes('heading1') || styleName === '1'
-        ? 'heading1'
-        : styleName.includes('heading2') || styleName === '2'
-          ? 'heading2'
-          : styleName.includes('heading3') || styleName === '3'
-            ? 'heading3'
-            : isList
-              ? 'bullet'
-              : 'body'
-    paragraphs.push({ text, style, bold, italic })
+/**
+ * Reads the OOXML parts of a .docx and parses `word/document.xml` with a real
+ * XML DOM. Styles, numbering and relationships are passed through so heading
+ * detection, list markers and hyperlinks resolve correctly.
+ *
+ * Deliberately does not use regular expressions: a `<w:t[^>]*>` pattern also
+ * matches `<w:tab/>`, `<w:tbl>`, `<w:tc>` and `<w:tr>`, which is exactly how raw
+ * markup used to leak into generated PDFs.
+ */
+export async function parseDocxFile(file: File | Blob): Promise<ParsedDocx> {
+  let zip: JSZip
+  try {
+    zip = await JSZip.loadAsync(file)
+  } catch {
+    throw new Error('This file is not a valid .docx archive. It may be corrupted or password-protected.')
   }
+  const read = async (path: string) => (await zip.file(path)?.async('string')) ?? null
+  const documentXml = await read('word/document.xml')
+  if (!documentXml) {
+    throw new Error('This .docx file has no document body (word/document.xml is missing).')
+  }
+  const [stylesXml, numberingXml, relsXml] = await Promise.all([
+    read('word/styles.xml'),
+    read('word/numbering.xml'),
+    read('word/_rels/document.xml.rels'),
+  ])
+  return parseDocumentXml(documentXml, { stylesXml, numberingXml, relsXml })
+}
 
+/** Plain-paragraph view of a .docx, kept for callers that only need text. */
+export async function readDocx(file: File | Blob): Promise<DocxReadResult> {
+  const parsed = await parseDocxFile(file)
+  const paragraphs: DocxParagraph[] = parsed.paragraphs.map((block) => ({
+    text: block.text,
+    style: block.style,
+    bold: block.runs.some((run) => run.bold),
+    italic: block.runs.some((run) => run.italic),
+  }))
   return {
     paragraphs,
     characterCount: paragraphs.reduce((sum, p) => sum + p.text.length, 0),
