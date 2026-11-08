@@ -8,7 +8,35 @@ import {
   rgb,
   type RGB,
 } from 'pdf-lib'
-import { closePdf, extractPageText, loadPdf, renderPageToJpegBytes, PdfPasswordError } from './pdfjs'
+/**
+ * pdfjs is browser-only: it imports the worker through a Vite `?url` asset and
+ * needs a DOM. Loading it lazily keeps the pdf-lib engine importable in Node
+ * (regression tests) and keeps the worker out of the eager module graph.
+ */
+type PdfjsModule = typeof import('./pdfjs')
+
+let pdfjsModule: Promise<PdfjsModule | null> | null = null
+
+function loadPdfjs(): Promise<PdfjsModule | null> {
+  pdfjsModule ??= import('./pdfjs').catch(() => null)
+  return pdfjsModule
+}
+
+async function requirePdfjs(): Promise<PdfjsModule> {
+  const mod = await loadPdfjs()
+  if (!mod) {
+    throw new Error('This tool needs the in-browser PDF renderer, which is not available here.')
+  }
+  return mod
+}
+
+/** Fallback used only when the browser renderer is unavailable. */
+class EncryptedPdfError extends Error {
+  constructor(message: string, readonly recoverable = true) {
+    super(message)
+    this.name = 'PdfPasswordError'
+  }
+}
 
 export interface PdfResultFile {
   name: string
@@ -48,15 +76,21 @@ export async function loadPdfLib(file: File | Blob, options: LoadPdfLibOptions =
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (/encrypt/i.test(message)) {
-      throw new PdfPasswordError('This PDF is encrypted. Unlock it first with the Unlock PDF tool.', false)
+      const mod = await loadPdfjs()
+      const PasswordError = mod?.PdfPasswordError ?? EncryptedPdfError
+      throw new PasswordError('This PDF is encrypted. Unlock it first with the Unlock PDF tool.', false)
     }
     throw new Error(`Could not parse this PDF (${message}). Try the Repair PDF tool.`)
   }
 }
 
 async function assertReadable(bytes: Uint8Array, password?: string): Promise<void> {
-  const doc = await loadPdf(bytes, { password, copy: false })
-  await closePdf(doc)
+  const mod = await loadPdfjs()
+  // Without the browser renderer (Node tests) pdf-lib's own parser still
+  // rejects encrypted documents, so the probe is simply skipped.
+  if (!mod) return
+  const doc = await mod.loadPdf(bytes, { password, copy: false })
+  await mod.closePdf(doc)
 }
 
 export async function savePdfBlob(doc: PDFDocument): Promise<Blob> {
@@ -382,20 +416,21 @@ export async function rasterizePdf(file: File | Blob, options: RasterizeOptions 
   const dpi = options.dpi ?? 150
   const quality = options.quality ?? 0.75
   const buffer = await file.arrayBuffer()
-  const doc = await loadPdf(buffer, { password: options.password })
+  const pdfjs = await requirePdfjs()
+  const doc = await pdfjs.loadPdf(buffer, { password: options.password })
   const pages: RasterPage[] = []
   try {
     for (let index = 1; index <= doc.numPages; index++) {
       const page = await doc.getPage(index)
       const base = page.getViewport({ scale: 1 })
       const targetWidth = (base.width / 72) * dpi
-      const rendered = await renderPageToJpegBytes(page, Math.min(targetWidth, 4000), quality)
+      const rendered = await pdfjs.renderPageToJpegBytes(page, Math.min(targetWidth, 4000), quality)
       pages.push({ bytes: rendered.bytes, width: rendered.width, height: rendered.height })
       page.cleanup()
       options.onProgress?.(index, doc.numPages)
     }
   } finally {
-    await closePdf(doc)
+    await pdfjs.closePdf(doc)
   }
   return pages
 }
@@ -599,7 +634,8 @@ export async function redactPdf(
   onProgress?: (done: number, total: number) => void,
 ): Promise<RedactionOutcome> {
   const buffer = await file.arrayBuffer()
-  const source = await loadPdf(buffer)
+  const pdfjs = await requirePdfjs()
+  const source = await pdfjs.loadPdf(buffer)
   const redactedPages = new Set(boxes.map((box) => box.page))
   const output = await PDFDocument.create()
   const original = await PDFDocument.load(buffer, { ignoreEncryption: true, updateMetadata: false })
@@ -618,7 +654,7 @@ export async function redactPdf(
         continue
       }
 
-      const text = await extractPageText(page)
+      const text = await pdfjs.extractPageText(page)
       const pageBoxes = boxes.filter((box) => box.page === index)
       for (const box of pageBoxes) {
         const boxRect = {
@@ -636,7 +672,7 @@ export async function redactPdf(
 
       const dpi = 200
       const targetWidth = (viewport.width / 72) * dpi
-      const rendered = await renderPageToJpegBytes(page, Math.min(targetWidth, 3200), 0.9)
+      const rendered = await pdfjs.renderPageToJpegBytes(page, Math.min(targetWidth, 3200), 0.9)
       const raster = await output.embedJpg(rendered.bytes)
       const pdfPage = output.addPage([rendered.width, rendered.height])
       pdfPage.drawImage(raster, { x: 0, y: 0, width: rendered.width, height: rendered.height })
@@ -652,7 +688,7 @@ export async function redactPdf(
       page.cleanup()
     }
   } finally {
-    await closePdf(source)
+    await pdfjs.closePdf(source)
   }
 
   return { blob: await savePdfBlob(output), redactedPages: redactedPages.size, boxes: boxes.length, removedCharacters }
@@ -897,13 +933,14 @@ export interface PdfTextDocument {
 
 export async function readPdfText(file: File, password?: string): Promise<PdfTextDocument> {
   const buffer = await file.arrayBuffer()
-  const doc = await loadPdf(buffer, { password })
+  const pdfjs = await requirePdfjs()
+  const doc = await pdfjs.loadPdf(buffer, { password })
   const pages: PdfTextDocument['pages'] = []
   try {
     const metadata = await doc.getMetadata().catch(() => null)
     for (let index = 1; index <= doc.numPages; index++) {
       const page = await doc.getPage(index)
-      const extracted = await extractPageText(page)
+      const extracted = await pdfjs.extractPageText(page)
       pages.push({
         pageNumber: index,
         text: extracted.text,
@@ -922,7 +959,7 @@ export async function readPdfText(file: File, password?: string): Promise<PdfTex
       pages,
     }
   } finally {
-    await closePdf(doc)
+    await pdfjs.closePdf(doc)
   }
 }
 
