@@ -197,7 +197,7 @@ function isRawTextItem(item: unknown): item is RawTextItem {
 export async function extractPageText(page: PDFPageProxy): Promise<PageText> {
   const viewport = page.getViewport({ scale: 1 })
   const content = await page.getTextContent()
-  const items = content.items.filter(isRawTextItem)
+  const items = content.items.filter(isRawTextItem) as unknown as RawTextItem[]
 
   const rows: { y: number; height: number; items: RawTextItem[] }[] = []
   for (const item of items) {

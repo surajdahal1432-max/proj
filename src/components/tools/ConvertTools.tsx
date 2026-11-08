@@ -40,7 +40,6 @@ import {
 } from '@/lib/convert'
 import type { TextPdfOptions } from '@/lib/textPdf'
 import { OCR_LANGUAGES, ocrPdf } from '@/lib/ocr'
-import { zipBlobs } from '@/lib/zip'
 import { useAppStore } from '@/store/useAppStore'
 import { readAsArrayBuffer } from '@/lib/utils'
 

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { closePdf, loadPdfFromFile, PdfPasswordError } from '@/lib/pdfjs'
 import { extensionOf } from '@/lib/utils'
+import { HANDOFF_EVENT } from '@/lib/handoff'
 
 export interface QueueFileResult {
   name: string
