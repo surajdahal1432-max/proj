@@ -11,6 +11,11 @@ export interface ThumbnailState {
 /**
  * Renders page thumbnails in sequence so large documents stay responsive.
  * Thumbnails are data URLs that can be used directly in <img src>.
+ *
+ * `pageCount` is published as soon as the document opens, before any page is
+ * rendered, so selection UIs never have to wait for previews. A page that
+ * fails to render leaves an empty thumbnail slot instead of discarding the
+ * whole document.
  */
 export function usePageThumbnails(file: File | null, maxWidth = 200): ThumbnailState {
   const [state, setState] = React.useState<ThumbnailState>({
@@ -29,29 +34,41 @@ export function usePageThumbnails(file: File | null, maxWidth = 200): ThumbnailS
     setState({ thumbs: [], pageCount: 0, loading: true, error: null })
 
     const run = async () => {
+      let doc: Awaited<ReturnType<typeof loadPdfFromFile>> | null = null
       try {
-        const doc = await loadPdfFromFile(file)
+        doc = await loadPdfFromFile(file)
         if (cancelled) return
-        setState((current) => ({ ...current, pageCount: doc.numPages }))
+        const total = doc.numPages
+        setState({ thumbs: [], pageCount: total, loading: true, error: null })
+
         const collected: string[] = []
-        for (let index = 1; index <= doc.numPages; index += 1) {
-          const page = await doc.getPage(index)
-          const url = await renderThumbnail(page, maxWidth)
+        for (let index = 1; index <= total; index += 1) {
+          let url = ''
+          try {
+            const page = await doc.getPage(index)
+            url = await renderThumbnail(page, maxWidth)
+            page.cleanup()
+          } catch {
+            // One unrenderable page must not invalidate the rest of the document.
+            url = ''
+          }
           collected.push(url)
-          page.cleanup()
           if (cancelled) return
-          setState({ thumbs: [...collected], pageCount: doc.numPages, loading: true, error: null })
+          setState({ thumbs: [...collected], pageCount: total, loading: true, error: null })
         }
-        await closePdf(doc)
-        if (!cancelled) setState({ thumbs: collected, pageCount: doc.numPages, loading: false, error: null })
+        if (!cancelled) setState({ thumbs: collected, pageCount: total, loading: false, error: null })
       } catch (error) {
         if (cancelled) return
         setState({
           thumbs: [],
           pageCount: 0,
           loading: false,
-          error: error instanceof Error ? error.message : 'Could not render this PDF.',
+          error: error instanceof Error ? error.message : 'Could not open this PDF.',
         })
+      } finally {
+        if (doc) {
+          await closePdf(doc).catch(() => undefined)
+        }
       }
     }
 
