@@ -33,6 +33,14 @@ import {
   type TextAnnotation,
 } from '@/lib/pdf'
 import { PdfWrongPassword, decryptPdf, encryptPdf } from '@/lib/encrypt'
+import {
+  clampPlacement,
+  heightRatioFor,
+  imageAspect,
+  imageFileToPngBytes,
+  signPdfWithPlacement,
+  type SignaturePlacement,
+} from '@/lib/signature'
 import { comparePdfs, comparisonReportPdf } from '@/lib/compare'
 import { baseName, cn, formatBytes, uid } from '@/lib/utils'
 import { ToolShell, ToolPanel } from '@/components/ToolShell'
@@ -634,39 +642,128 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
   const { doc, sizes } = usePdfDoc(file)
   const [pageIndex, setPageIndex] = React.useState(0)
   const [signatureBytes, setSignatureBytes] = React.useState<Uint8Array | null>(null)
+  const [signatureUrl, setSignatureUrl] = React.useState<string | null>(null)
+  const [aspect, setAspect] = React.useState(3.4)
+  const [placement, setPlacement] = React.useState<SignaturePlacement>({ page: 0, x: 0.62, y: 0.78, width: 0.3 })
   const [typed, setTyped] = React.useState('')
-  const [widthRatio, setWidthRatio] = React.useState(0.3)
   const [busy, setBusy] = React.useState(false)
   const [results, setResults] = React.useState<ResultFile[]>([])
+  const drag = React.useRef<{
+    mode: 'move' | 'resize'
+    startX: number
+    startY: number
+    rect: SignaturePlacement
+    boxWidth: number
+    boxHeight: number
+  } | null>(null)
   const pageCount = doc?.numPages ?? 0
+  const pageSize = sizes[pageIndex] ?? { width: 595, height: 842 }
+  // Single source of truth: the preview box and the embedded stamp both use this.
+  const heightRatio = heightRatioFor({ ...placement, page: pageIndex }, aspect, pageSize)
+
+  React.useEffect(() => {
+    return () => {
+      if (signatureUrl) URL.revokeObjectURL(signatureUrl)
+    }
+  }, [signatureUrl])
+
+  const adoptSignature = async (bytes: Uint8Array) => {
+    const ratio = await imageAspect(bytes)
+    setSignatureBytes(bytes)
+    setAspect(ratio)
+    setSignatureUrl(URL.createObjectURL(blobFromBytes(bytes, 'image/png')))
+    setPlacement((current) => clampPlacement({ ...current, page: pageIndex }, heightRatioFor(current, ratio, pageSize)))
+  }
 
   const typeSignature = async () => {
     if (!typed.trim()) return
     const canvas = document.createElement('canvas')
-    canvas.width = 900
-    canvas.height = 260
+    canvas.width = 1200
+    canvas.height = 320
     const context = canvas.getContext('2d')
     if (!context) return
+    context.font = 'italic 150px "Segoe Script", "Brush Script MT", cursive'
     context.fillStyle = '#0f172a'
-    context.font = 'italic 110px "Segoe Script", "Brush Script MT", cursive'
     context.textBaseline = 'middle'
-    context.fillText(typed, 30, 140)
-    setSignatureBytes(await canvasToPngBytes(canvas))
-    toast({ title: 'Signature created', description: 'Place it on the page below.', variant: 'success' })
+    const textWidth = context.measureText(typed).width
+    context.fillText(typed, Math.max(24, (canvas.width - textWidth) / 2), canvas.height / 2)
+    await adoptSignature(await canvasToPngBytes(canvas))
+    toast({ title: 'Signature created', description: 'Drag it into position on the page.', variant: 'success' })
   }
 
-  const place = async () => {
+  const uploadSignature = async (files: FileList | null) => {
+    const picked = files?.[0]
+    if (!picked) return
+    try {
+      await adoptSignature(await imageFileToPngBytes(picked))
+      toast({ title: 'Signature uploaded', description: 'Drag it into position on the page.', variant: 'success' })
+    } catch (err) {
+      toast({ title: 'Could not read that image', description: errorMessage(err, 'Choose a PNG or JPEG image.'), variant: 'error' })
+    }
+  }
+
+  const beginDrag = (mode: 'move' | 'resize') => (event: React.PointerEvent<HTMLElement>) => {
+    if (!signatureUrl) return
+    event.preventDefault()
+    event.stopPropagation()
+    const surface = (event.currentTarget.closest('[data-signature-surface]') as HTMLElement | null)?.getBoundingClientRect()
+    const box = surface ?? event.currentTarget.getBoundingClientRect()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = {
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      rect: placement,
+      boxWidth: box.width,
+      boxHeight: box.height,
+    }
+  }
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = drag.current
+    if (!state) return
+    const dx = (event.clientX - state.startX) / Math.max(1, state.boxWidth)
+    const dy = (event.clientY - state.startY) / Math.max(1, state.boxHeight)
+    if (state.mode === 'move') {
+      setPlacement(
+        clampPlacement({ ...state.rect, page: pageIndex, x: state.rect.x + dx, y: state.rect.y + dy }, heightRatio),
+      )
+      return
+    }
+    const width = Math.min(0.9, Math.max(0.05, state.rect.width + dx))
+    const next = { ...state.rect, page: pageIndex, width }
+    setPlacement(clampPlacement(next, heightRatioFor(next, aspect, pageSize)))
+  }
+
+  const endDrag = () => {
+    drag.current = null
+  }
+
+  const resetPlacement = () => {
+    setPlacement((current) =>
+      clampPlacement({ ...current, page: pageIndex, x: 0.62, y: 0.78, width: 0.3 }, heightRatio),
+    )
+  }
+
+  const apply = async () => {
     if (!file || !signatureBytes) return
     setBusy(true)
     try {
-      const heightRatio = (widthRatio * (sizes[pageIndex]?.width ?? 595)) / 3.4 / (sizes[pageIndex]?.height ?? 842)
-      const blob = await applyImageStamps(asPdfFile(file, file.name), [
-        { page: pageIndex, x: 0.62, y: 0.8, width: widthRatio, height: heightRatio, pngBytes: signatureBytes },
-      ])
+      const blob = await signPdfWithPlacement(
+        asPdfFile(file, file.name),
+        { ...placement, page: pageIndex },
+        signatureBytes,
+        pageSize,
+        aspect,
+      )
       const name = `${baseName(file.name)}-signed.pdf`
       setResults([{ name, blob, size: blob.size }])
       record(tool, { inputName: file.name, outputName: name, outputSize: blob.size })
-      toast({ title: 'Signature applied', description: 'Your signed PDF is ready to download.', variant: 'success' })
+      toast({
+        title: 'Signature applied',
+        description: `Embedded on page ${pageIndex + 1} of the exported PDF.`,
+        variant: 'success',
+      })
     } catch (err) {
       toast({ title: 'Could not sign', description: errorMessage(err, 'The signature could not be applied.'), variant: 'error' })
     } finally {
@@ -686,9 +783,41 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
               <PdfPageView doc={doc} pageIndex={pageIndex}>
                 {() => (
                   <div
-                    className="pointer-events-none absolute border-2 border-dashed border-primary/60 bg-primary/5"
-                    style={{ left: '62%', top: '80%', width: `${widthRatio * 100}%`, height: '12%' }}
-                  />
+                    data-signature-surface
+                    className="absolute inset-0 touch-none"
+                    onPointerMove={onPointerMove}
+                    onPointerUp={endDrag}
+                    onPointerCancel={endDrag}
+                  >
+                    {signatureUrl ? (
+                      <div
+                        className="absolute cursor-move border-2 border-dashed border-primary/70 bg-primary/5"
+                        style={{
+                          left: `${placement.x * 100}%`,
+                          top: `${placement.y * 100}%`,
+                          width: `${placement.width * 100}%`,
+                          height: `${heightRatio * 100}%`,
+                        }}
+                        onPointerDown={beginDrag('move')}
+                      >
+                        <img
+                          src={signatureUrl}
+                          alt="Signature preview"
+                          draggable={false}
+                          className="pointer-events-none h-full w-full object-contain"
+                        />
+                        <span
+                          role="presentation"
+                          className="absolute -bottom-1.5 -right-1.5 h-4 w-4 cursor-nwse-resize rounded-sm border border-primary bg-background"
+                          onPointerDown={beginDrag('resize')}
+                        />
+                      </div>
+                    ) : (
+                      <p className="absolute inset-x-0 top-3 text-center text-xs text-muted-foreground">
+                        Create or upload a signature to place it on page {pageIndex + 1}.
+                      </p>
+                    )}
+                  </div>
                 )}
               </PdfPageView>
             </>
@@ -696,7 +825,11 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
         </div>
         <div className="space-y-4">
           <ToolPanel title="Draw signature" description="Vector-quality ink, exported as a transparent stamp.">
-            <SignaturePad onChange={setSignatureBytes} />
+            <SignaturePad
+              onChange={(bytes) => {
+                void adoptSignature(bytes)
+              }}
+            />
           </ToolPanel>
           <ToolPanel title="Or type it" description="Choose a handwriting style.">
             <div className="flex gap-2">
@@ -705,22 +838,59 @@ export function SignTool({ tool }: { tool: ToolDefinition }) {
                 <PenLine className="h-4 w-4" /> Create
               </Button>
             </div>
+            <label className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground">
+              <Plus className="h-3.5 w-3.5" />
+              Upload a signature image
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  void uploadSignature(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+            </label>
           </ToolPanel>
-          <ToolPanel title="Placement" description="Positioned bottom-right of the selected page.">
+          <ToolPanel title="Placement" description="Drag the box on the page, or use the width slider.">
             <div className="space-y-1.5">
               <Label>Signature width</Label>
               <div className="flex items-center gap-2">
-                <Slider value={[widthRatio]} min={0.15} max={0.55} step={0.01} onValueChange={(value) => setWidthRatio(value[0] ?? 0.3)} />
-                <span className="w-10 text-right text-xs text-muted-foreground">{Math.round(widthRatio * 100)}%</span>
+                <Slider
+                  value={[placement.width]}
+                  min={0.05}
+                  max={0.6}
+                  step={0.01}
+                  onValueChange={(value) => {
+                    const width = value[0] ?? placement.width
+                    const next = { ...placement, page: pageIndex, width }
+                    setPlacement(clampPlacement(next, heightRatioFor(next, aspect, pageSize)))
+                  }}
+                />
+                <span className="w-10 text-right text-xs text-muted-foreground">{Math.round(placement.width * 100)}%</span>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Page {pageIndex + 1} of {Math.max(1, pageCount)} · position {Math.round(placement.x * 100)}% /{' '}
+              {Math.round(placement.y * 100)}%
+            </p>
+            <Button variant="outline" onClick={resetPlacement} className="w-full">
+              Reset position
+            </Button>
             {busy && <Progress value={60} />}
-            <Button onClick={place} disabled={!file || !signatureBytes || busy} className="w-full gap-1.5">
+            <Button onClick={apply} disabled={!file || !signatureBytes || busy} className="w-full gap-1.5">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Stamp className="h-4 w-4" />}
               Apply signature
             </Button>
           </ToolPanel>
-          <ResultPanel results={results} title="Signed document" onReset={() => { setResults([]); setFile(null) }} />
+          <ResultPanel
+            results={results}
+            title="Signed document"
+            onReset={() => {
+              setResults([])
+              setFile(null)
+            }}
+          />
         </div>
       </div>
     </ToolShell>
