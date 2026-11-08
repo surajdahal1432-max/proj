@@ -8,13 +8,24 @@ export function useRecordHistory() {
   const localMode = useAppStore((state) => state.localMode)
 
   return React.useCallback(
-    (tool: ToolDefinition, inputName: string, output: { name: string; size: number }) => {
+    (
+      tool: ToolDefinition,
+      inputName: string | { inputName: string; outputName: string; outputSize: number },
+      output?: { name: string; size: number },
+    ) => {
+      const resolvedInput = typeof inputName === 'string' ? inputName : inputName.inputName
+      const resolvedOutput =
+        typeof inputName === 'string'
+          ? output
+          : { name: inputName.outputName, size: inputName.outputSize }
+      if (!resolvedOutput) return
+
       addHistory({
         toolId: tool.id,
         toolName: tool.name,
-        inputName,
-        outputName: output.name,
-        outputSize: output.size,
+        inputName: resolvedInput,
+        outputName: resolvedOutput.name,
+        outputSize: resolvedOutput.size,
         local: localMode,
       })
     },
