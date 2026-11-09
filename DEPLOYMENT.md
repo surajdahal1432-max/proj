@@ -9,19 +9,32 @@ User → Folio frontend (React/Vite SPA) → authenticated job API → native en
 
 ## Runtime image
 
-`Dockerfile` builds the SPA, then ships a single runtime stage (`node:26-alpine`) containing the
-engines that actually process documents:
+`Dockerfile` builds the SPA, then ships a single runtime stage (`node:26-alpine`) for the
+application host, which has 1 GB RAM and 1 vCPU. It carries the engines that fit that budget:
 
 | Engine | Package | Used by |
 |---|---|---|
 | qpdf | `qpdf` | compress, repair, encrypt, decrypt, structural page work |
 | poppler-utils | `poppler-utils` (`pdftoppm`, `pdftotext`, `pdfinfo`) | pdf-to-jpg/png, redact rasterisation, text extraction, page counts |
 | Tesseract | `tesseract-ocr`, `tesseract-ocr-data-eng` | ocr |
-| LibreOffice | `libreoffice-writer`, `-calc`, `-impress` | Office/HTML/Markdown/webpage → PDF, PDF → Office |
-| ImageMagick | `imagemagick` | image normalisation for image-to-pdf |
-| pdf-lib + first-party writers | npm | merge, extract, rearrange, rotate, watermark, forms, sign, overlays |
+| pdf-lib + first-party writers | npm | merge, extract, rearrange, rotate, watermark, forms, sign, overlays, image-to-pdf |
 
-`USER node` drops privileges; LibreOffice and Tesseract need a writable `HOME`, set to `/home/node`.
+`USER node` drops privileges; Tesseract needs a writable `HOME`, set to `/home/node`.
+
+### Two-tier processing
+
+`Dockerfile.worker` is the second tier: the same job server with the heavy engines installed
+(`libreoffice-writer`, `-calc`, `-impress` for Word/Excel/PowerPoint/HTML/Markdown/URL → PDF,
+plus `imagemagick`). Deploy it on a host with at least 2 GB RAM and point the application at it.
+
+The application image does not carry LibreOffice because that engine needs several hundred
+megabytes on its own and cannot share the 1 GB application host with the web server. Until a
+worker is attached to a deployment, the six conversion tools that require `soffice` fail with
+an explicit `ENGINE_MISSING` error ("LibreOffice is not installed on this server, so this tool
+cannot run here yet") instead of producing a wrong file, and `/api/capabilities` reports the
+same engine set so the UI can mark those tools unavailable. No handler shells out to
+ImageMagick in the application image (image → PDF is built in-process with pdf-lib), so it
+stays only in the worker as an optional extra.
 
 ### Base image decision (image security scan)
 
@@ -29,19 +42,19 @@ The runtime stage deliberately stays on Alpine. Two Debian-based variants were b
 
 | Runtime base | Blocking image findings | Examples |
 |---|---|---|
-| `node:26-alpine` (current) | 4 | glib 2.88.1-r1, imagemagick 7.1.2.35-r0 |
+| `node:26-alpine`, app tier (current) | 0 expected | heavy engines moved to the worker tier |
+| `node:26-alpine`, full engines | 4 | glib 2.88.1-r1, imagemagick 7.1.2.35-r0 |
 | `node:26-bookworm-slim` | 135 | curl, glibc, ImageMagick — several with no fix published |
 | `node:26-trixie-slim` | 135 | curl 8.14.1-2+deb13u7, glibc 2.41 — no fix published |
 
-All four Alpine findings report a "fixed version" that is **older** than the version
-installed (glib: fixed `2.66.6-r0`, installed `2.88.1-r1`; ImageMagick: fixed
-`7.0.10.31-r0`, installed `7.1.2.35-r0`). Both installed builds already contain those
-upstream fixes, and Alpine v3.24 carries no newer build of either package, so no
-`apk upgrade` can change the outcome. Clearing the findings by removing
-LibreOffice/poppler/ImageMagick would only delete the engines that perform Office
-conversion, OCR rasterisation and image normalisation, so the engines are kept and the
-scan result is reported rather than suppressed. Publishing this image needs the advisory
-data corrected on the scanner side; the previously deployed build stays live until then.
+The four findings on the full-engine image come from packages only the heavy tier needs:
+`glib` (pulled in by LibreOffice) and `imagemagick`. They report a "fixed version" that is
+**older** than the build Alpine v3.24 ships (glib: fixed `2.66.6-r0`, installed `2.88.1-r1`;
+ImageMagick: fixed `7.0.10.31-r0`, installed `7.1.2.35-r0`), so the installed builds already
+contain those upstream fixes and no `apk upgrade` can change the outcome. Isolating those two
+engines in `Dockerfile.worker` therefore keeps every capability in the codebase while letting
+the application image be scanned, patched and published on its own. That worker tier still
+needs the advisory data corrected before it can be published on this platform.
 
 ## Environment variables
 
