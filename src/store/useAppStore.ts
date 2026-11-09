@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { OLLAMA_DEFAULT_HOST } from '@/lib/ai'
+import { registerLocalModeProvider } from '@/lib/privacy'
 
 export type Theme = 'dark' | 'light'
 
@@ -112,3 +113,7 @@ export const useAppStore = create<AppState>()(
     },
   ),
 )
+
+// The privacy guard reads the live store value, so Strict Local Mode survives reloads and
+// rehydration instead of trusting a module-level copy.
+registerLocalModeProvider(() => useAppStore.getState().localMode)

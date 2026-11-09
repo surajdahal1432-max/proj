@@ -1,4 +1,5 @@
 import type { PdfTextDocument } from './pdf'
+import { guardedFetch } from './privacy'
 
 export interface DocumentChunk {
   page: number
@@ -209,7 +210,7 @@ export async function listOllamaModels(host: string): Promise<string[]> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 4000)
   try {
-    const response = await fetch(`${base}/api/tags`, { signal: controller.signal })
+    const response = await guardedFetch(`${base}/api/tags`, { signal: controller.signal })
     if (!response.ok) throw new Error(`Ollama responded ${response.status}`)
     const payload = (await response.json()) as { models?: { name: string }[] }
     return (payload.models ?? []).map((model) => model.name).sort()
@@ -236,7 +237,7 @@ export interface OllamaChatOptions {
 
 export async function ollamaChat(options: OllamaChatOptions): Promise<string> {
   const base = normalizeHost(options.host)
-  const response = await fetch(`${base}/api/chat`, {
+  const response = await guardedFetch(`${base}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal: options.signal,
