@@ -156,7 +156,7 @@ handlers.split = async ({ files, options, dir, ctx }) => {
   for (let index = 0; index < ranges.length; index += 1) {
     const label = ranges[index].length === 1 ? `page-${ranges[index][0] + 1}` : `part-${index + 1}`
     const target = out(dir, `${base}-${label}`, 'pdf')
-    await pdfEngine.extract(ranges[index].map((pageIndex) => files[0].path), ranges[index], target.path, ctx)
+    await pdfEngine.extractPages(input, ranges[index], target.path)
     outputs.push(target)
     ctx.onProgress?.(((index + 1) / ranges.length) * 90)
   }
@@ -173,14 +173,14 @@ handlers.extract = async ({ files, options, dir, ctx }) => {
   const ordered = requested.map((page) => page - 1)
   const base = safeBase(files[0].name)
   const combined = out(dir, `${base}-extracted`, 'pdf')
-  await pdfEngine.extract([input], ordered, combined.path, ctx)
+  await pdfEngine.extractPages(input, ordered, combined.path)
 
   if (options.individual === false) return { outputs: [combined], meta: { pages: ordered.length } }
 
   const singles = []
   for (let index = 0; index < ordered.length; index += 1) {
     const target = out(dir, `${base}-page-${ordered[index] + 1}`, 'pdf')
-    await pdfEngine.extract([input], [ordered[index]], target.path, ctx)
+    await pdfEngine.extractPages(input, [ordered[index]], target.path)
     singles.push(target)
     ctx.onProgress?.(((index + 1) / ordered.length) * 80)
   }
@@ -196,7 +196,12 @@ handlers.rearrange = async ({ files, options, dir, ctx }) => {
   const kept = order.filter((page) => !deleted.has(page))
   if (!kept.length) throw new Error('Every page was deleted — keep at least one page')
   const target = out(dir, `${safeBase(files[0].name)}-organized`, 'pdf')
-  await pdfEngine.reorder([input], kept.map((page) => page - 1), target.path, options.rotations || {}, ctx)
+  const rotations = {}
+  for (const [key, value] of Object.entries(options.rotations || {})) {
+    const index = Number(key) - 1
+    if (Number.isFinite(index) && index >= 0) rotations[index] = Number(value)
+  }
+  await pdfEngine.rearrange(input, kept.map((page) => page - 1), rotations, target.path)
   return { outputs: [target], meta: { pages: kept.length } }
 }
 
@@ -205,12 +210,12 @@ handlers.rotate = async ({ files, options, dir, ctx }) => {
   const input = files[0].path
   const pages = await native.pageCount(input, ctx)
   const target = out(dir, `${safeBase(files[0].name)}-rotated`, 'pdf')
-  const perPage = options.rotations && typeof options.rotations === 'object' ? options.rotations : null
-  const rotations = {}
-  for (let page = 1; page <= pages; page += 1) {
-    rotations[page] = perPage ? Number(perPage[page] ?? perPage[page - 1] ?? 0) : Number(options.angle || 90)
+  const perPage = {}
+  for (const [key, value] of Object.entries(options.rotations || {})) {
+    const index = Number(key) - 1
+    if (Number.isFinite(index) && index >= 0) perPage[index] = Number(value)
   }
-  await pdfEngine.rotate(input, rotations, target.path, ctx)
+  await pdfEngine.rotate(input, { angle: Number(options.angle || 90), perPage }, target.path)
   return { outputs: [target], meta: { pages, angle: options.angle || 'per-page' } }
 }
 
@@ -302,7 +307,7 @@ handlers['pdf-to-text'] = async ({ files, dir, ctx }) => {
 handlers['pdf-to-pdfa'] = async ({ files, dir, ctx }) => {
   requireFiles(files, 1)
   const target = out(dir, `${safeBase(files[0].name)}-archive`, 'pdf')
-  const result = await pdfEngine.toArchivePdf(files[0].path, target.path, ctx)
+  const result = await pdfEngine.toPdfA(files[0].path, target.path)
   return { outputs: [target], meta: result }
 }
 
@@ -371,7 +376,11 @@ async function fetchWebpage(url, ctx) {
 handlers['image-to-pdf'] = async ({ files, dir, ctx }) => {
   requireFiles(files, 1)
   const target = out(dir, files.length === 1 ? safeBase(files[0].name) : 'images', 'pdf')
-  const result = await pdfEngine.imagesToPdf(files.map((file) => file.path), target.path, ctx)
+  const result = await pdfEngine.imagesToPdf(
+    files.map((file) => file.path),
+    { pageSize: options.pageSize || 'fit', margin: Number(options.margin) || 0 },
+    target.path,
+  )
   return { outputs: [target], meta: result }
 }
 
