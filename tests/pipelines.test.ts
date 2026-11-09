@@ -100,7 +100,7 @@ async function fontSizeOf(blob: Blob, needle: string): Promise<number> {
       page.cleanup()
     }
   } finally {
-    await doc.destroy()
+    await closeDoc(doc)
   }
   return 0
 }
@@ -112,11 +112,15 @@ async function imageTransforms(blob: Blob): Promise<number[][]> {
     const page = await doc.getPage(1)
     const ops = await page.getOperatorList()
     const found: number[][] = []
+    // pdf-lib emits the placement as a separate transform before painting the
+    // image, so track the most recent transform instead of reading paint args.
+    let matrix: number[] | null = null
     ops.fnArray.forEach((fn, index) => {
-      if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintInlineImageXObject) {
-        const args = ops.argsArray[index] as unknown[]
-        const matrix = args.find((arg) => Array.isArray(arg) && arg.length === 6)
-        if (Array.isArray(matrix)) found.push(matrix as number[])
+      const args = ops.argsArray[index] as unknown[]
+      if (fn === pdfjs.OPS.transform) {
+        matrix = (args.length === 1 && Array.isArray(args[0]) ? args[0] : args) as number[]
+      } else if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintInlineImageXObject) {
+        if (matrix && matrix.length === 6) found.push(matrix)
       }
     })
     return found
