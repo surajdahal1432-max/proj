@@ -238,11 +238,11 @@ test('word-to-pdf produces a PDF with no raw OOXML markup', async (t) => {
 test('pdf-to-jpg renders real JPEG images', async (t) => {
   if (!ready.has('pdf-to-jpg')) return t.skip('poppler is not installed in this environment')
   const job = await runJob('pdf-to-jpg', ['simple.pdf'], { dpi: 72 })
-  assert.ok(job.outputs.length > 0, 'no images were produced')
-  for (const output of job.outputs) assert.match(output.name, /\.jpe?g$/i)
-
+  assert.equal(job.outputs.length, 1, 'expected a single download')
   const { buffer, type } = await download(job)
-  if (job.outputs.length === 1) {
+
+  if (!/\.zip$/i.test(job.outputs[0].name)) {
+    assert.match(job.outputs[0].name, /\.jpe?g$/i)
     assert.match(type, /image\/jpeg/)
     assert.deepEqual([...buffer.subarray(0, 2)], [0xff, 0xd8])
     return
