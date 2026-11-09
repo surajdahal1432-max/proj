@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   ArrowRight,
   Check,
-  Cloud,
   FileText,
   History,
   Menu,
@@ -19,7 +18,6 @@ import { cn, formatBytes, formatRelativeTime } from '@/lib/utils'
 import { useAppStore } from '@/store/useAppStore'
 import { TOOLS } from '@/lib/tools'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/controls'
 import { Tooltip, Sheet } from '@/components/ui/overlays'
 import { Badge } from '@/components/ui/feedback'
 
