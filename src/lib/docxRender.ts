@@ -112,6 +112,8 @@ class DocxRenderer {
     this.newPage()
 
     for (const block of parsed.blocks) {
+      // Honour Word's page breaks instead of silently reflowing the document.
+      if (block.type === 'paragraph' && block.pageBreakBefore && !this.atPageTop()) this.newPage()
       if (block.type === 'table') {
         this.drawTable(block.rows, block.headerRow)
       } else {
@@ -138,6 +140,11 @@ class DocxRenderer {
   private newPage() {
     this.page = this.doc.addPage([this.pageWidth, this.pageHeight])
     this.y = this.pageHeight - this.marginTop
+  }
+
+  /** True while the current page is still blank. */
+  private atPageTop(): boolean {
+    return this.y >= this.pageHeight - this.marginTop - 0.5
   }
 
   private ensureSpace(needed: number) {

@@ -72,6 +72,8 @@ export interface DocxParagraphBlock {
   fontSize?: number
   fontFamily?: string
   color?: RGB
+  /** Word began this paragraph on a fresh page (w:pageBreakBefore or a page break). */
+  pageBreakBefore?: boolean
 }
 
 export interface DocxTableBlock {
@@ -781,6 +783,39 @@ function listMarker(ctx: ParseContext, numId: string | undefined, level: number,
   return `${next}.`
 }
 
+/**
+ * True when Word starts this paragraph at the top of a new page.
+ * Honours <w:pageBreakBefore/>, a page-type <w:br/> and Word's own
+ * <w:lastRenderedPageBreak/> hint, but only before any visible text so a
+ * mid-paragraph break never drags the whole paragraph onto the next page.
+ */
+function startsNewPage(paragraph: Element, pPr: Element | null): boolean {
+  if (firstChild(pPr, 'pageBreakBefore')) return true
+  let found = false
+  let seenText = false
+  const walk = (el: Element) => {
+    for (const child of childElements(el)) {
+      if (found) return
+      const local = localNameOf(child)
+      if (local === 't') {
+        if ((child.textContent ?? '').trim()) seenText = true
+        continue
+      }
+      if (local === 'lastrenderedpagebreak') {
+        if (!seenText) found = true
+        return
+      }
+      if (local === 'br' && (attr(child, 'type') ?? '').toLowerCase() === 'page') {
+        if (!seenText) found = true
+        return
+      }
+      walk(child)
+    }
+  }
+  walk(paragraph)
+  return found
+}
+
 function parseParagraph(paragraph: Element, ctx: ParseContext): DocxParagraphBlock {
   const pPr = firstChild(paragraph, 'pPr')
   const styleId = attr(firstChild(pPr, 'pStyle'), 'val') ?? undefined
@@ -858,6 +893,7 @@ function parseParagraph(paragraph: Element, ctx: ParseContext): DocxParagraphBlo
     fontSize: baseFormat.fontSize,
     fontFamily: baseFormat.fontFamily,
     color: baseFormat.color,
+    pageBreakBefore: startsNewPage(paragraph, pPr) || undefined,
   }
 }
 
