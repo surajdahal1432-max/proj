@@ -684,14 +684,16 @@ export async function redactPdf(
       const targetWidth = (viewport.width / 72) * dpi
       const rendered = await pdfjs.renderPageToJpegBytes(page, Math.min(targetWidth, 3200), 0.9)
       const raster = await output.embedJpg(rendered.bytes)
-      const pdfPage = output.addPage([rendered.width, rendered.height])
-      pdfPage.drawImage(raster, { x: 0, y: 0, width: rendered.width, height: rendered.height })
+      const pageW = viewport.width
+      const pageH = viewport.height
+      const pdfPage = output.addPage([pageW, pageH])
+      pdfPage.drawImage(raster, { x: 0, y: 0, width: pageW, height: pageH })
       for (const box of pageBoxes) {
         pdfPage.drawRectangle({
-          x: box.x * rendered.width,
-          y: (1 - box.y - box.height) * rendered.height,
-          width: box.width * rendered.width,
-          height: box.height * rendered.height,
+          x: box.x * pageW,
+          y: (1 - box.y - box.height) * pageH,
+          width: box.width * pageW,
+          height: box.height * pageH,
           color: rgb(0, 0, 0),
         })
       }
