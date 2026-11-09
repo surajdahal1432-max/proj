@@ -58,6 +58,16 @@ async function openPdf(blob: Blob | Uint8Array) {
   return doc
 }
 
+/** Reader teardown differs between pdfjs builds: destroy() or cleanup(). */
+async function closeDoc(doc: { destroy?: () => Promise<unknown>; cleanup?: () => Promise<unknown> }) {
+  try {
+    if (typeof doc.destroy === 'function') await doc.destroy()
+    else if (typeof doc.cleanup === 'function') await doc.cleanup()
+  } catch {
+    /* reader teardown must never mask the assertion */
+  }
+}
+
 async function pdfPages(blob: Blob | Uint8Array): Promise<string[]> {
   const doc = await openPdf(blob)
   const pages: string[] = []
@@ -73,7 +83,7 @@ async function pdfPages(blob: Blob | Uint8Array): Promise<string[]> {
     )
     page.cleanup()
   }
-  await doc.destroy()
+  await closeDoc(doc)
   return pages
 }
 
