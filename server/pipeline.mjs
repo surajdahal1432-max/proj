@@ -313,6 +313,21 @@ handlers['pdf-to-text'] = async ({ files, dir, ctx }) => {
   return { outputs: [target], meta: result }
 }
 
+handlers['pdf-to-csv'] = async ({ files, dir, ctx }) => {
+  requireFiles(files, 1)
+  const text = await native.pdfToText(files[0].path, ctx)
+  if (!text.trim()) throw new Error('No selectable text found. Run OCR PDF first for scanned documents.')
+  const tables = convert.detectTablesFromText(text)
+  const rows = []
+  for (const table of tables) for (const row of table) rows.push(row)
+  if (!rows.length) throw new Error('No tabular data was detected in this document')
+  const cell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const csv = rows.map((row) => row.map(cell).join(',')).join('\r\n')
+  const target = out(dir, `${safeBase(files[0].name)}-tables`, 'csv')
+  await writeFile(target.path, csv, 'utf8')
+  return { outputs: [target], meta: { tables: tables.length, rows: rows.length } }
+}
+
 handlers['pdf-to-pdfa'] = async ({ files, dir, ctx }) => {
   requireFiles(files, 1)
   const target = out(dir, `${safeBase(files[0].name)}-archive`, 'pdf')
