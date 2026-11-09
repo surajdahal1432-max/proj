@@ -13,7 +13,7 @@ import { Input, Label, Progress, Select, SelectContent, SelectItem, SelectTrigge
 import { Badge, Alert, Spinner } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/overlays'
 import { baseName, cn, formatBytes, parsePageRanges } from '@/lib/utils'
-import { mergePdfs, reorderPages, rotatePdf, splitPdfGroups } from '@/lib/pdf'
+import { mergePdfs, reorderPages, rotatePdf, splitPdfGroups } from '@/lib/serverTools'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong while processing this file.'

@@ -33,7 +33,8 @@ import {
   type RedactionBox,
   type TextAnnotation,
 } from '@/lib/pdf'
-import { PdfWrongPassword, decryptPdf, encryptPdf } from '@/lib/encrypt'
+import { PdfWrongPassword } from '@/lib/encrypt'
+import { decryptPdf, encryptPdf } from '@/lib/serverTools'
 import {
   clampPlacement,
   heightRatioFor,

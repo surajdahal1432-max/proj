@@ -21,7 +21,7 @@ import { Checkbox, Input, Label, Progress, Select, SelectContent, SelectItem, Se
 import { Alert, Badge, Spinner } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/overlays'
 import { baseName, downloadBlob, formatBytes } from '@/lib/utils'
-import { compressPdf, imagesToPdf, repairPdf, toPdfA } from '@/lib/pdf'
+import { compressPdf, imagesToPdf, repairPdf, toPdfA } from '@/lib/serverTools'
 import {
   docxToPdf,
   htmlToPdf,
@@ -37,9 +37,10 @@ import {
   textToPdfFile,
   urlToPdf,
   xlsxToPdf,
-} from '@/lib/convert'
+} from '@/lib/serverTools'
 import type { TextPdfOptions } from '@/lib/textPdf'
-import { OCR_LANGUAGES, ocrPdf } from '@/lib/ocr'
+import { OCR_LANGUAGES } from '@/lib/ocr'
+import { ocrPdf } from '@/lib/serverTools'
 import { useAppStore } from '@/store/useAppStore'
 import { readAsArrayBuffer } from '@/lib/utils'
 

@@ -20,7 +20,7 @@ import type { ToolDefinition, AiTab } from '@/lib/tools'
 import { readPdfText, type PdfTextDocument } from '@/lib/pdf'
 import { detectTables } from '@/lib/convert'
 import { rowsToCsv } from '@/lib/xlsx'
-import { markdownToPdf } from '@/lib/convert'
+import { markdownToPdf } from '@/lib/serverTools'
 import {
   TRANSLATION_LANGUAGES,
   answerLocally,

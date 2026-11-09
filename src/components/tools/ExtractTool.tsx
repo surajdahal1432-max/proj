@@ -25,7 +25,7 @@ import { Input, Label } from '@/components/ui/controls'
 import { Badge } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/overlays'
 import { baseName, cn, downloadBlob, parsePageRanges } from '@/lib/utils'
-import { extractPagesToPdf } from '@/lib/pdf'
+import { extractPagesToPdf } from '@/lib/serverTools'
 import { closePdf, loadPdfFromFile, renderThumbnail } from '@/lib/pdfjs'
 
 const ZOOM_STEPS = [480, 720, 1080]
