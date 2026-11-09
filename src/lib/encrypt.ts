@@ -377,7 +377,7 @@ function stringBytes(value: PDFString | PDFHexString): Uint8Array {
  * ------------------------------------------------------------------ */
 
 export async function encryptPdf(file: File | Blob, options: EncryptOptions): Promise<Blob> {
-  const userPassword = latin1Bytes(options.userPassword)
+  const userPassword = latin1Bytes(options.userPassword ?? '')
   if (userPassword.length === 0) throw new Error('Choose a password with at least one character.')
 
   const ownerPassword = latin1Bytes(options.ownerPassword || options.userPassword)

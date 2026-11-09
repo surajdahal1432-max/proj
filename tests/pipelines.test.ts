@@ -329,7 +329,10 @@ test('forms can be inspected, filled and flattened', async () => {
  * Security
  * ---------------------------------------------------------------- */
 test('encryption round-trips and rejects a wrong password', async () => {
-  const encrypted = await encrypt.encryptPdf(fixture('simple.pdf'), { password: 'secret-pass', ownerPassword: 'owner-pass' })
+  const encrypted = await encrypt.encryptPdf(fixture('simple.pdf'), {
+    userPassword: 'secret-pass',
+    ownerPassword: 'owner-pass',
+  })
   assert.equal(await encrypt.isEncrypted(encrypted), true)
 
   const encryptedBytes = await bytesOf(encrypted)
