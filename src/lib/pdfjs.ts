@@ -290,13 +290,17 @@ export async function getPdfSummary(
 }
 
 
-/** PDF.js 6 exposes cleanup() on the document proxy; release it safely. */
-type ClosablePdfDocument = { cleanup: (keepLoadedFonts?: boolean) => Promise<unknown> }
+/** PDF.js documents expose destroy(); fall back to cleanup() and never throw. */
+type ClosablePdfDocument = {
+  destroy?: () => Promise<unknown>
+  cleanup?: (keepLoadedFonts?: boolean) => Promise<unknown>
+}
 
 export async function closePdf(doc: ClosablePdfDocument | null | undefined): Promise<void> {
   if (!doc) return
   try {
-    await doc.cleanup()
+    if (typeof doc.destroy === 'function') await doc.destroy()
+    else await doc.cleanup?.()
   } catch {
     /* document already released */
   }

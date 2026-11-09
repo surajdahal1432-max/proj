@@ -918,8 +918,10 @@ export async function toPdfA(file: File, onProgress?: (done: number, total: numb
 
   for (const page of pages) {
     const image = await doc.embedJpg(page.bytes)
-    const pdfPage = doc.addPage([page.width, page.height])
-    pdfPage.drawImage(image, { x: 0, y: 0, width: page.width, height: page.height })
+    const w = page.pointWidth ?? page.width
+    const h = page.pointHeight ?? page.height
+    const pdfPage = doc.addPage([w, h])
+    pdfPage.drawImage(image, { x: 0, y: 0, width: w, height: h })
   }
 
   return savePdfBlob(doc)

@@ -126,6 +126,8 @@ interface PageViewProps {
 
 function PdfPageView({ doc, pageIndex, maxWidth = 860, className, children }: PageViewProps) {
   const [image, setImage] = React.useState<{ dataUrl: string; width: number; height: number } | null>(null)
+  const imgRef = React.useRef<HTMLImageElement | null>(null)
+  const [shownWidth, setShownWidth] = React.useState(0)
 
   React.useEffect(() => {
     let cancelled = false
@@ -147,6 +149,17 @@ function PdfPageView({ doc, pageIndex, maxWidth = 860, className, children }: Pa
     }
   }, [doc, pageIndex, maxWidth])
 
+  React.useLayoutEffect(() => {
+    const node = imgRef.current
+    if (!node) return
+    const measure = () => setShownWidth(node.getBoundingClientRect().width)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [image])
+
   if (!image) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-sm text-muted-foreground">
@@ -155,10 +168,19 @@ function PdfPageView({ doc, pageIndex, maxWidth = 860, className, children }: Pa
     )
   }
 
+  const displayWidth = image.width / Math.min(window.devicePixelRatio || 1, 2)
+
   return (
     <div className={cn('relative mx-auto w-fit max-w-full overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm', className)}>
-      <img src={image.dataUrl} alt={`Page ${pageIndex + 1}`} className="block h-auto max-w-full select-none" draggable={false} />
-      {children?.({ width: image.width, height: image.height })}
+      <img
+        ref={imgRef}
+        src={image.dataUrl}
+        alt={`Page ${pageIndex + 1}`}
+        className="block h-auto max-w-full select-none"
+        draggable={false}
+        style={{ width: displayWidth }}
+      />
+      {children?.({ width: shownWidth || displayWidth, height: image.height })}
     </div>
   )
 }
