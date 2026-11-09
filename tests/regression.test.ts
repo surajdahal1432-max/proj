@@ -31,7 +31,18 @@ for (const key of [
   'Path2D',
 ]) {
   if (jsdomWindow[key] !== undefined) {
-    ;(globalThis as Record<string, unknown>)[key] = jsdomWindow[key]
+    // Node 22 exposes some of these (notably `navigator`) as getter-only globals, so a plain
+    // assignment throws. defineProperty works for both cases; if a property is non-configurable
+    // we keep the runtime's own implementation rather than failing the whole suite.
+    try {
+      Object.defineProperty(globalThis, key, {
+        value: jsdomWindow[key],
+        configurable: true,
+        writable: true,
+      })
+    } catch {
+      /* keep the existing global */
+    }
   }
 }
 
