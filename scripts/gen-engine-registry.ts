@@ -56,7 +56,7 @@ const detailSections = tools
     const limits = t.limits.map((l) => `- ${l}`).join('\n')
     const validation = t.validation.map((v) => `- ${v}`).join('\n')
     const workerLine = t.preferredWorker
-      ? `\n**Higher-fidelity option:** \`${t.preferredWorker}\` — requires the document worker described below; unavailable in Strict Local Mode.\n`
+      ? `\n**Native server engine:** \`${t.preferredWorker}\` — executed by the engine deployed in this image.\n`
       : ''
     return `### \`${t.toolId}\` — ${t.primary}${t.fallback ? ` (fallback: ${t.fallback})` : ''}
 
@@ -93,9 +93,9 @@ engine that is not listed here.
 |---|---|
 | Engines registered | ${engines.length} |
 | Tools mapped | ${tools.length} |
-| Tools running fully in the browser | ${localTools.length} |
-| Tools needing a document worker (unavailable in Strict Local Mode) | ${workerTools.length} |
-| Tools with a higher-fidelity worker engine available | ${preferred.length} |
+| Tools processed on Folio's server | ${workerTools.length} |
+| Browser-side tools (PDF.js preview and canvas rendering only) | ${localTools.length} |
+| Tools executed by a native server engine | ${preferred.length} |
 | Engines not bundled in this deployment | ${described.length} |
 | Engines with an unapproved licence class | ${unapproved.length} |
 
@@ -121,57 +121,52 @@ ${toolRows}
 ## Per-tool limits and validation
 
 ${detailSections}
-## Engines that are *not* bundled
+## Engines deployed in this image
 
-These are documented candidates. They are **not installed in this image** and no tool invokes them.
-Enabling one requires: a licence entry in \`THIRD_PARTY_LICENSES.md\`, a worker service with resource
-limits, and real-file regression tests.
+Folio runs one processing architecture: the browser is a client and every document operation runs on
+Folio's own server.
 
-| Engine | Why it is not bundled | Resource requirement if added | Licence |
+| Engine | Deployed as | Used by | Licence |
 |---|---|---|---|
-| LibreOffice (headless) | ~500 MB–1 GB image weight, needs a native process per conversion | 1 vCPU, 1–2 GB RAM, 30 s timeout per document | MPL-2.0 (class C — review obligations before shipping) |
-| qpdf | Native binary; \`pdf-lib\` covers the structural operations Folio advertises | 128 MB RAM, sub-second per file | Apache-2.0 (class A) |
-| Apache PDFBox | JVM runtime | 512 MB heap | Apache-2.0 (class A) |
-| pyHanko | Python runtime; digital signatures need a certificate authority the user supplies | 256 MB RAM | MIT (class A) |
-| veraPDF | JVM runtime, large validation corpus | 1 GB heap | GPL-3.0 + MPL-2.0 (class D — **must not** be added without written approval) |
-| Sharp | Native \`libvips\` build; \`canvas\` covers the raster work Folio does | 256 MB RAM | Apache-2.0 (class A) |
-| Playwright + Chromium | ~400 MB image weight for HTML/URL rendering | 1 vCPU, 1 GB RAM | Apache-2.0 (class A) |
+| qpdf | `qpdf` binary | compress, repair, encrypt, decrypt, structural page work | Apache-2.0 (class B) |
+| poppler-utils | `pdftoppm`, `pdftotext`, `pdfinfo` | pdf-to-jpg, pdf-to-png, redact rasterisation, text extraction, page counts | GPL-2.0 programs invoked as separate processes (class B, documented) |
+| Tesseract | `tesseract-ocr` + English data | ocr | Apache-2.0 (class B) |
+| LibreOffice | `soffice --headless` | Office/HTML/Markdown/webpage → PDF and PDF → Office | MPL-2.0 (class C, obligations documented) |
+| pdf-lib | Node library | merge, extract, rearrange, rotate, watermark, forms, sign, editor overlays | MIT (class A) |
+| ImageMagick | `convert` | image normalisation for image-to-pdf | ImageMagick licence (class B) |
 
-### Deployment note
+Evaluation-only engines (`pyhanko-worker`, `verapdf-worker`) are not installed and no tool invokes
+them.
 
-The current deployment is a static build served by \`server.mjs\` on a single 1 vCPU / 1 GB instance.
-Native engines do not fit in that process and must not be added to it. A document worker is a
-separate service: it accepts a single file over an authenticated endpoint, processes it in an
-isolated temporary directory, returns the result, and deletes both input and output immediately
-(see \`DEPLOYMENT.md\` and \`SECURITY_AND_PRIVACY.md\`). Until such a worker exists, every tool listed
-above runs entirely in the browser and Strict Local Mode is a complete guarantee for them.
+### Resource plan
 
-## Strict Local Mode
+The runtime image has 1 vCPU / 1 GB. Native engines are serialised:
+`FOLIO_HEAVY_CONCURRENCY=1` for LibreOffice, Tesseract and poppler batches,
+`FOLIO_LIGHT_CONCURRENCY=2` for pdf-lib and qpdf work, with `FOLIO_JOB_TIMEOUT_MS=180000` and
+`FOLIO_ENGINE_TIMEOUT_MS=120000`. More concurrency needs a separate worker service — see
+`DEPLOYMENT.md`.
 
-Strict Local Mode is enforced in \`src/lib/privacy.ts\`, not merely advertised:
+## Processing architecture
 
-- Every outbound request must pass \`guardedFetch\`, which throws \`LocalModeViolation\` when the mode is
-  on and the destination is not loopback.
-- Loopback destinations (the user's own Ollama at \`127.0.0.1:11434\`) are permitted, so local AI keeps
-  working without any document leaving the machine.
-- The store registers its current mode with the guard, so the switch in the header takes effect for
-  every subsequent request in the same tab.
-- Every permitted transmission is recorded with its destination and purpose, and the log is
-  inspectable, so "nothing left your device" is verifiable rather than claimed.
+Every tool follows one path:
 
-**Tools available in Strict Local Mode:** ${localTools.length} of ${tools.length}.
-${workerTools.length ? `\n**Unavailable in Strict Local Mode:** ${workerTools.map((t) => `\`${t.toolId}\``).join(', ')} — these require the document worker.` : '\nNo tool requires a remote worker, so Strict Local Mode disables nothing.'}
+`User → Folio frontend → authenticated job API → engine → validated output → download`
+
+- A job is created with declared files, uploaded into an isolated temporary directory, then started.
+- The status endpoint exposes progress, stage text and cancellation.
+- Outputs are validated (present, non-empty, correct type) before a download link exists.
+- Temporary files are deleted after delivery; abandoned jobs expire automatically.
+- There is no local/cloud mode switch — users never choose where a document is processed.
 
 ## Selection policy
 
 1. Use the engine that performs the operation structurally; never re-render a document to simulate a
    structural edit.
-2. Prefer a browser engine when it reaches the required fidelity, so the document never leaves the
-   device.
+2. Keep the browser to previews: PDF.js renders pages, but processing happens on Folio's server.
 3. When a native engine would materially improve fidelity, declare it as \`preferredWorker\` and tell
    the user which engine produced their file.
 4. Never select an engine whose licence class is C or D.
-5. Never silently fall back from local to remote processing.
+5. Never substitute a lower-fidelity engine without recording a warning on the job.
 `
 
 writeFileSync(join(ROOT, 'ENGINE_REGISTRY.md'), doc)
