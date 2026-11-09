@@ -138,7 +138,7 @@ async function imageTransforms(blob: Blob): Promise<number[][]> {
         ctm = stack.pop() ?? [...identity]
       } else if (fn === pdfjs.OPS.transform) {
         const m = (args.length === 1 && Array.isArray(args[0]) ? args[0] : args) as number[]
-        if (m.length === 6) ctm = multiply(ctm, m)
+        if (m.length === 6) ctm = multiply(m, ctm)
       } else if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintInlineImageXObject) {
         found.push([...ctm])
       }
