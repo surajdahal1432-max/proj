@@ -215,7 +215,7 @@ export async function pdfToImages(
   }
 
   const buffer = await file.arrayBuffer()
-  const { loadPdf, renderPageToDataUrl } = await import('./pdfjs')
+  const { closePdf, loadPdf, renderPageToDataUrl } = await import('./pdfjs')
   const doc = await loadPdf(buffer, { password: options.password })
 
   const results: NamedBlob[] = []
