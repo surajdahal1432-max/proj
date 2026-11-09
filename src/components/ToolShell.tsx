@@ -15,7 +15,6 @@ export interface ToolShellProps {
 }
 
 export function ToolShell({ tool, children, aside, wide }: ToolShellProps) {
-  const localMode = useAppStore((state) => state.localMode)
   const Icon = tool.icon
   const category = CATEGORIES.find((entry) => entry.id === tool.category)
 
@@ -39,15 +38,9 @@ export function ToolShell({ tool, children, aside, wide }: ToolShellProps) {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-[26px]">{tool.name}</h1>
             <Badge variant="secondary">{category?.label ?? tool.category}</Badge>
-            {localMode ? (
-              <Badge variant="success">
-                <ShieldCheck className="h-3 w-3" /> Local
-              </Badge>
-            ) : (
-              <Badge variant="outline">
-                <Sparkles className="h-3 w-3" /> Cloud-ready
-              </Badge>
-            )}
+            <Badge variant="success">
+              <ShieldCheck className="h-3 w-3" /> Server engine
+            </Badge>
           </div>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{tool.description}</p>
         </div>

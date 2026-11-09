@@ -52,8 +52,6 @@ export function FolioMark({ className }: { className?: string }) {
 export function Header() {
   const theme = useAppStore((state) => state.theme)
   const toggleTheme = useAppStore((state) => state.toggleTheme)
-  const localMode = useAppStore((state) => state.localMode)
-  const setLocalMode = useAppStore((state) => state.setLocalMode)
   const setHistoryOpen = useAppStore((state) => state.setHistoryOpen)
   const history = useAppStore((state) => state.history)
   const [mobileOpen, setMobileOpen] = React.useState(false)
@@ -253,7 +251,6 @@ export function HistoryDrawer() {
 }
 
 export function Footer() {
-  const localMode = useAppStore((state) => state.localMode)
   const featured = TOOLS.filter((tool) => tool.featured).slice(0, 6)
   return (
     <footer className="mt-16 border-t border-border bg-card/30">
@@ -269,8 +266,7 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Check className="h-3.5 w-3.5 text-emerald-500" />
-            {localMode ? 'Strict local-only mode enabled' : 'Cloud workers available'}
-          </div>
+            {localMode ? 'Strict local-only mode enabled' : 'Cloud workers available'}          </div>
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Popular tools</p>

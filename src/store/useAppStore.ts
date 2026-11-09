@@ -58,7 +58,7 @@ export const useAppStore = create<AppState>()(
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === 'dark' ? 'light' : 'dark' }),
 
-      localMode: true,
+      localMode: false,
       setLocalMode: (value) => set({ localMode: value }),
       toggleLocalMode: () => set({ localMode: !get().localMode }),
 
