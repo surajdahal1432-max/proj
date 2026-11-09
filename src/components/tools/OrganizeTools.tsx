@@ -1,17 +1,5 @@
 import * as React from 'react'
-import {
-  ArrowDown,
-  ArrowUp,
-  Copy,
-  Download,
-  FileStack,
-  Layers,
-  Plus,
-  RotateCcw,
-  RotateCw,
-  Scissors,
-  Trash2,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, FileStack, Layers, Plus, RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react'
 import type { ToolDefinition } from '@/lib/tools'
 import { useFileQueue } from '@/hooks/useFileQueue'
 import { usePageThumbnails } from '@/hooks/usePageThumbnails'
@@ -25,8 +13,7 @@ import { Input, Label, Progress, Select, SelectContent, SelectItem, SelectTrigge
 import { Badge, Alert, Spinner } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/overlays'
 import { baseName, cn, formatBytes, parsePageRanges } from '@/lib/utils'
-import { extractPagesToPdf, mergePdfs, reorderPages, rotatePdf, splitPdfGroups } from '@/lib/pdf'
-import { zipBlobs } from '@/lib/zip'
+import { mergePdfs, reorderPages, rotatePdf, splitPdfGroups } from '@/lib/pdf'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong while processing this file.'
