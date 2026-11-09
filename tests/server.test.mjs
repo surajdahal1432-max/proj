@@ -105,6 +105,34 @@ async function runJob(tool, names, options = {}) {
   throw new Error(`${tool} timed out`)
 }
 
+/** Run a job from in-memory bytes, used to inspect an output produced by an earlier job. */
+async function runJobFromBytes(tool, name, bytes, options = {}) {
+  const created = await postJson('/api/jobs', { tool, files: [{ name, size: bytes.length }], options })
+  assert.equal(created.status, 201, `create ${tool}: ${JSON.stringify(created.body)}`)
+  const job = created.body
+  const upload = await fetch(`${base}${job.uploads[0].url}`, {
+    method: 'PUT',
+    headers: headers({ 'content-type': 'application/octet-stream' }),
+    body: bytes,
+  })
+  remember(upload)
+  assert.equal(upload.status, 200, `upload ${name}: ${await upload.text()}`)
+  const started = await postJson(`/api/jobs/${job.jobId}/start`, {})
+  assert.equal(started.status, 202)
+
+  const deadline = Date.now() + 150_000
+  while (Date.now() < deadline) {
+    const status = await getJson(`/api/jobs/${job.jobId}`)
+    const state = status.body
+    if (state.status === 'done') return state
+    if (state.status === 'error' || state.status === 'cancelled') {
+      throw new Error(`${tool} failed: ${state.error || state.status}`)
+    }
+    await new Promise((done) => setTimeout(done, 250))
+  }
+  throw new Error(`${tool} timed out`)
+}
+
 async function download(job, index = 0) {
   const response = await fetch(`${base}${job.outputs[index].downloadUrl}`, { headers: headers() })
   assert.equal(response.status, 200)
@@ -197,13 +225,14 @@ test('word-to-pdf produces a PDF with no raw OOXML markup', async (t) => {
   if (!ready.has('word-to-pdf')) return t.skip('LibreOffice is not installed in this environment')
   const job = await runJob('word-to-pdf', ['study.docx'])
   const { buffer } = await download(job)
-  assert.ok((await pageCount(buffer)) > 0)
+  assert.ok((await pageCount(buffer)) > 0, 'converted document had no pages')
 
-  const text = await runJob('pdf-to-text', ['study.docx'.replace('study.docx', 'simple.pdf')])
-  assert.ok(text.outputs.length > 0)
-
-  const roundTrip = await postJson('/api/jobs', { tool: 'pdf-to-text', files: [] })
-  assert.ok(roundTrip.status >= 400, 'empty upload must be rejected')
+  // Reopen the produced PDF through the server's own extractor: the visible text
+  // must be document content, never leaked WordprocessingML tags.
+  const text = await runJobFromBytes('pdf-to-text', 'converted.pdf', buffer)
+  const extracted = (await download(text)).buffer.toString('utf8')
+  assert.ok(extracted.trim().length > 0, 'converted PDF had no extractable text')
+  assert.doesNotMatch(extracted, /<\/?w:[a-zA-Z]+/, 'converted PDF leaked raw OOXML markup')
 })
 
 test('pdf-to-jpg renders a real JPEG', async (t) => {
