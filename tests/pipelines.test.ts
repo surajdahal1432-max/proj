@@ -121,7 +121,7 @@ async function imageTransforms(blob: Blob): Promise<number[][]> {
     })
     return found
   } finally {
-    await doc.destroy()
+    await closeDoc(doc)
   }
 }
 
@@ -174,7 +174,7 @@ test('delete, reorder and rotate change only what they claim', async () => {
   const order = await pdfPages(reordered)
   assert.deepEqual(order.map((t) => t.split(' ')[0]), ['GAMMA', 'ALPHA', 'BETA'])
 
-  const rotated = await pdfLib.rotatePdf(fixture('simple.pdf'), { angle: 90 })
+  const rotated = await pdfLib.rotatePdf(fixture('simple.pdf'), { global: 90 })
   const doc = await PDFDocument.load(await bytesOf(rotated))
   assert.deepEqual(doc.getPages().map((page) => page.getRotation().angle), [90, 90, 90])
   assert.equal((await pdfPages(rotated)).length, 3)
