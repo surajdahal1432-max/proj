@@ -18,7 +18,7 @@ import {
   Unlock,
 } from 'lucide-react'
 import type { ToolDefinition } from '@/lib/tools'
-import { loadPdfFromFile, renderPageToDataUrl } from '@/lib/pdfjs'
+import { closePdf, loadPdfFromFile, renderPageToDataUrl } from '@/lib/pdfjs'
 import {
   addPageNumbers,
   applyImageStamps,

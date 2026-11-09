@@ -127,12 +127,12 @@ export async function renderPageIntoCanvas(
 /** Render a page off-screen and return a PNG data URL (used for thumbnails). */
 export async function renderPageToDataUrl(
   page: PDFPageProxy,
-  options: { scale?: number; maxWidth?: number; format?: 'png' | 'jpeg'; quality?: number } = {},
+  options: { scale?: number; maxWidth?: number; format?: 'png' | 'jpeg'; quality?: number; pixelRatio?: number } = {},
 ): Promise<RenderedPage> {
   const base = page.getViewport({ scale: 1 })
   const scale = options.scale ?? (options.maxWidth ? options.maxWidth / base.width : 1)
   const canvas = makeCanvas(base.width * scale, base.height * scale)
-  await renderPageIntoCanvas(page, canvas, scale)
+  await renderPageIntoCanvas(page, canvas, scale, 0, options.pixelRatio)
   const format = options.format ?? 'png'
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(

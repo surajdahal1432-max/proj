@@ -388,6 +388,8 @@ export interface RasterPage {
   bytes: Uint8Array
   width: number
   height: number
+  pointWidth?: number
+  pointHeight?: number
 }
 
 export async function pdfFromJpegs(pages: RasterPage[]): Promise<Blob> {
@@ -395,8 +397,10 @@ export async function pdfFromJpegs(pages: RasterPage[]): Promise<Blob> {
   doc.setProducer('Folio')
   for (const page of pages) {
     const image = await doc.embedJpg(page.bytes)
-    const pdfPage = doc.addPage([page.width, page.height])
-    pdfPage.drawImage(image, { x: 0, y: 0, width: page.width, height: page.height })
+    const w = page.pointWidth ?? page.width
+    const h = page.pointHeight ?? page.height
+    const pdfPage = doc.addPage([w, h])
+    pdfPage.drawImage(image, { x: 0, y: 0, width: w, height: h })
   }
   return savePdfBlob(doc)
 }
