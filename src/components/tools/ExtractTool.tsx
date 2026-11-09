@@ -9,7 +9,6 @@ import {
   FileDown,
   ListOrdered,
   Shuffle,
-  Trash2,
   X,
   ZoomIn,
   ZoomOut,
@@ -553,8 +552,4 @@ export function ExtractTool({ tool }: { tool: ToolDefinition }) {
       ) : null}
     </ToolShell>
   )
-}
-
-export function RemoveSelectionHint() {
-  return <Trash2 className="hidden" aria-hidden />
 }
