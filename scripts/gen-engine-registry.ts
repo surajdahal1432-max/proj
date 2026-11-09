@@ -128,29 +128,29 @@ Folio's own server.
 
 | Engine | Deployed as | Used by | Licence |
 |---|---|---|---|
-| qpdf | `qpdf` binary | compress, repair, encrypt, decrypt, structural page work | Apache-2.0 (class B) |
-| poppler-utils | `pdftoppm`, `pdftotext`, `pdfinfo` | pdf-to-jpg, pdf-to-png, redact rasterisation, text extraction, page counts | GPL-2.0 programs invoked as separate processes (class B, documented) |
-| Tesseract | `tesseract-ocr` + English data | ocr | Apache-2.0 (class B) |
-| LibreOffice | `soffice --headless` | Office/HTML/Markdown/webpage → PDF and PDF → Office | MPL-2.0 (class C, obligations documented) |
+| qpdf | \`qpdf\` binary | compress, repair, encrypt, decrypt, structural page work | Apache-2.0 (class B) |
+| poppler-utils | \`pdftoppm\`, \`pdftotext\`, \`pdfinfo\` | pdf-to-jpg, pdf-to-png, redact rasterisation, text extraction, page counts | GPL-2.0 programs invoked as separate processes (class B, documented) |
+| Tesseract | \`tesseract-ocr\` + English data | ocr | Apache-2.0 (class B) |
+| LibreOffice | \`soffice --headless\` | Office/HTML/Markdown/webpage → PDF and PDF → Office | MPL-2.0 (class C, obligations documented) |
 | pdf-lib | Node library | merge, extract, rearrange, rotate, watermark, forms, sign, editor overlays | MIT (class A) |
-| ImageMagick | `convert` | image normalisation for image-to-pdf | ImageMagick licence (class B) |
+| ImageMagick | \`convert\` | image normalisation for image-to-pdf | ImageMagick licence (class B) |
 
-Evaluation-only engines (`pyhanko-worker`, `verapdf-worker`) are not installed and no tool invokes
+Evaluation-only engines (\`pyhanko-worker\`, \`verapdf-worker\`) are not installed and no tool invokes
 them.
 
 ### Resource plan
 
 The runtime image has 1 vCPU / 1 GB. Native engines are serialised:
-`FOLIO_HEAVY_CONCURRENCY=1` for LibreOffice, Tesseract and poppler batches,
-`FOLIO_LIGHT_CONCURRENCY=2` for pdf-lib and qpdf work, with `FOLIO_JOB_TIMEOUT_MS=180000` and
-`FOLIO_ENGINE_TIMEOUT_MS=120000`. More concurrency needs a separate worker service — see
-`DEPLOYMENT.md`.
+\`FOLIO_HEAVY_CONCURRENCY=1\` for LibreOffice, Tesseract and poppler batches,
+\`FOLIO_LIGHT_CONCURRENCY=2\` for pdf-lib and qpdf work, with \`FOLIO_JOB_TIMEOUT_MS=180000\` and
+\`FOLIO_ENGINE_TIMEOUT_MS=120000\`. More concurrency needs a separate worker service — see
+\`DEPLOYMENT.md\`.
 
 ## Processing architecture
 
 Every tool follows one path:
 
-`User → Folio frontend → authenticated job API → engine → validated output → download`
+\`User → Folio frontend → authenticated job API → engine → validated output → download\`
 
 - A job is created with declared files, uploaded into an isolated temporary directory, then started.
 - The status endpoint exposes progress, stage text and cancellation.

@@ -13,10 +13,10 @@ engine that is not listed here.
 |---|---|
 | Engines registered | 15 |
 | Tools mapped | 36 |
-| Tools running fully in the browser | 32 |
-| Tools needing a document worker (unavailable in Strict Local Mode) | 4 |
-| Tools with a higher-fidelity worker engine available | 6 |
-| Engines not bundled in this deployment | 6 |
+| Tools processed on Folio's server | 36 |
+| Browser-side tools (PDF.js preview and canvas rendering only) | 0 |
+| Tools executed by a native server engine | 6 |
+| Engines not bundled in this deployment | 3 |
 | Engines with an unapproved licence class | 3 |
 
 Registry counter from code: `ENGINE_REGISTRY_COUNT = {"engines":15,"tools":36}`.
@@ -35,9 +35,9 @@ Registry counter from code: `ENGINE_REGISTRY_COUNT = {"engines":15,"tools":36}`.
 | `xlsx-writer` | Folio XLSX writer (in-repo) | Minimal SpreadsheetML writer on top of JSZip | MIT (first-party) | A | browser | bundled |
 | `webcrypto` | Web Crypto API | AES-CBC key derivation and encryption for password protection | W3C / browser built-in | A | browser | bundled |
 | `ollama` | Ollama (user-hosted) | Offline LLM inference for summary, Q&A, translation | MIT (client); model licences vary by model | B | local-model | not bundled |
-| `libreoffice-worker` | LibreOffice headless (document worker) | High-fidelity Office rendering and PDF/A export | MPL-2.0 | C | document-worker | not bundled |
-| `chromium-worker` | Chromium via Playwright (document worker) | Real CSS layout for HTML and webpage to PDF | Apache-2.0 (Chromium: BSD-3-Clause and others) | C | document-worker | not bundled |
-| `qpdf-worker` | qpdf (document worker) | Structural PDF repair, linearization and inspection | Apache-2.0 | B | document-worker | not bundled |
+| `libreoffice-worker` | LibreOffice headless (document worker) | High-fidelity Office rendering and PDF/A export | MPL-2.0 | C | server | bundled |
+| `chromium-worker` | Chromium via Playwright (document worker) | Real CSS layout for HTML and webpage to PDF | Apache-2.0 (Chromium: BSD-3-Clause and others) | C | server | bundled |
+| `qpdf-worker` | qpdf (document worker) | Structural PDF repair, linearization and inspection | Apache-2.0 | B | server | bundled |
 | `pyhanko-worker` | pyHanko (document worker) | Certificate-based digital signatures | MIT | A | document-worker | not bundled |
 | `verapdf-worker` | veraPDF (document worker) | ISO 19005 (PDF/A) conformance validation | AGPL-3.0 / MPL-2.0 mix | D | document-worker | not bundled |
 
@@ -50,42 +50,42 @@ can assert this.
 
 | Tool | Primary | Fallback | Preferred worker engine | Side | Inputs | Outputs | Fidelity |
 |---|---|---|---|---|---|---|---|
-| `merge` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `split` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `rearrange` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `extract` | `pdf-lib` | — | — | browser | pdf | pdf; zip | exact |
-| `rotate` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `compress` | `pdfjs` | `pdf-lib` | — | browser | pdf | pdf | approximate |
-| `repair` | `pdfjs` | `pdf-lib` | — | browser | pdf | pdf | approximate |
-| `ocr` | `tesseract` | `pdfjs` | — | browser | pdf | pdf; txt | approximate |
-| `pdf-to-word` | `docx` | `pdfjs` | — | browser | pdf | docx | approximate |
-| `pdf-to-excel` | `xlsx-writer` | `pdfjs` | — | browser | pdf | xlsx; csv | approximate |
-| `pdf-to-powerpoint` | `pptxgenjs` | `pdfjs` | — | browser | pdf | pptx | approximate |
-| `pdf-to-jpg` | `pdfjs` | — | — | browser | pdf | jpg; zip | high |
-| `pdf-to-png` | `pdfjs` | — | — | browser | pdf | png; zip | high |
-| `pdf-to-markdown` | `pdfjs` | — | — | browser | pdf | md | approximate |
-| `pdf-to-text` | `pdfjs` | — | — | browser | pdf | txt | exact |
-| `pdf-to-pdfa` | `pdf-lib` | — | `verapdf-worker` | browser | pdf | pdf | approximate |
-| `word-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | browser | docx | pdf | high |
-| `excel-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | browser | xlsx; csv | pdf | high |
-| `powerpoint-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | browser | pptx | pdf | high |
-| `image-to-pdf` | `pdf-lib` | — | — | browser | png; jpg; jpeg; webp | pdf | exact |
-| `markdown-to-pdf` | `ooxml-parser` | `pdf-lib` | — | browser | md; markdown | pdf | high |
-| `html-to-pdf` | `ooxml-parser` | `pdf-lib` | `chromium-worker` | browser | html; htm | pdf | approximate |
-| `webpage-to-pdf` | `ooxml-parser` | `pdf-lib` | `chromium-worker` | browser | url | pdf | approximate |
-| `editor` | `pdfjs` | `pdf-lib` | — | browser | pdf | pdf | high |
-| `sign` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `forms` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `watermark` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `redact` | `pdfjs` | `pdf-lib` | — | browser | pdf | pdf | high |
-| `compare` | `pdfjs` | — | — | browser | pdf | txt; html | approximate |
-| `encrypt` | `pdf-lib` | `webcrypto` | — | browser | pdf | pdf | exact |
-| `decrypt` | `pdf-lib` | — | — | browser | pdf | pdf | exact |
-| `ai-summarize` | `ollama` | `pdfjs` | — | local-model | pdf | txt; md | approximate |
-| `ai-chat` | `ollama` | `pdfjs` | — | local-model | pdf | txt | approximate |
-| `ai-tables` | `pdfjs` | `xlsx-writer` | — | browser | pdf | csv; json; xlsx | approximate |
-| `ai-translate` | `ollama` | `pdfjs` | — | local-model | pdf | txt; pdf | approximate |
-| `ai-workspace` | `ollama` | `pdfjs` | — | local-model | pdf | txt; md; csv | approximate |
+| `merge` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `split` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `rearrange` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `extract` | `pdf-lib` | — | — | server | pdf | pdf; zip | exact |
+| `rotate` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `compress` | `pdfjs` | `pdf-lib` | — | server | pdf | pdf | approximate |
+| `repair` | `pdfjs` | `pdf-lib` | — | server | pdf | pdf | approximate |
+| `ocr` | `tesseract` | `pdfjs` | — | server | pdf | pdf; txt | approximate |
+| `pdf-to-word` | `docx` | `pdfjs` | — | server | pdf | docx | approximate |
+| `pdf-to-excel` | `xlsx-writer` | `pdfjs` | — | server | pdf | xlsx; csv | approximate |
+| `pdf-to-powerpoint` | `pptxgenjs` | `pdfjs` | — | server | pdf | pptx | approximate |
+| `pdf-to-jpg` | `pdfjs` | — | — | server | pdf | jpg; zip | high |
+| `pdf-to-png` | `pdfjs` | — | — | server | pdf | png; zip | high |
+| `pdf-to-markdown` | `pdfjs` | — | — | server | pdf | md | approximate |
+| `pdf-to-text` | `pdfjs` | — | — | server | pdf | txt | exact |
+| `pdf-to-pdfa` | `pdf-lib` | — | `verapdf-worker` | server | pdf | pdf | approximate |
+| `word-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | server | docx | pdf | high |
+| `excel-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | server | xlsx; csv | pdf | high |
+| `powerpoint-to-pdf` | `ooxml-parser` | `pdf-lib` | `libreoffice-worker` | server | pptx | pdf | high |
+| `image-to-pdf` | `pdf-lib` | — | — | server | png; jpg; jpeg; webp | pdf | exact |
+| `markdown-to-pdf` | `ooxml-parser` | `pdf-lib` | — | server | md; markdown | pdf | high |
+| `html-to-pdf` | `ooxml-parser` | `pdf-lib` | `chromium-worker` | server | html; htm | pdf | approximate |
+| `webpage-to-pdf` | `ooxml-parser` | `pdf-lib` | `chromium-worker` | server | url | pdf | approximate |
+| `editor` | `pdfjs` | `pdf-lib` | — | server | pdf | pdf | high |
+| `sign` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `forms` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `watermark` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `redact` | `pdfjs` | `pdf-lib` | — | server | pdf | pdf | high |
+| `compare` | `pdfjs` | — | — | server | pdf | txt; html | approximate |
+| `encrypt` | `pdf-lib` | `webcrypto` | — | server | pdf | pdf | exact |
+| `decrypt` | `pdf-lib` | — | — | server | pdf | pdf | exact |
+| `ai-summarize` | `ollama` | `pdfjs` | — | server | pdf | txt; md | approximate |
+| `ai-chat` | `ollama` | `pdfjs` | — | server | pdf | txt | approximate |
+| `ai-tables` | `pdfjs` | `xlsx-writer` | — | server | pdf | csv; json; xlsx | approximate |
+| `ai-translate` | `ollama` | `pdfjs` | — | server | pdf | txt; pdf | approximate |
+| `ai-workspace` | `ollama` | `pdfjs` | — | server | pdf | txt; md; csv | approximate |
 
 ## Per-tool limits and validation
 
@@ -278,7 +278,7 @@ can assert this.
 
 *Fidelity:* approximate — Best-effort reconstruction; the tool states the limitation in its UI before processing
 
-**Higher-fidelity option:** `verapdf-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `verapdf-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -293,7 +293,7 @@ can assert this.
 
 *Fidelity:* high — Layout-preserving conversion with a documented approximation where the browser cannot match a desktop renderer
 
-**Higher-fidelity option:** `libreoffice-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `libreoffice-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -309,7 +309,7 @@ can assert this.
 
 *Fidelity:* high — Layout-preserving conversion with a documented approximation where the browser cannot match a desktop renderer
 
-**Higher-fidelity option:** `libreoffice-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `libreoffice-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -324,7 +324,7 @@ can assert this.
 
 *Fidelity:* high — Layout-preserving conversion with a documented approximation where the browser cannot match a desktop renderer
 
-**Higher-fidelity option:** `libreoffice-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `libreoffice-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -362,7 +362,7 @@ can assert this.
 
 *Fidelity:* approximate — Best-effort reconstruction; the tool states the limitation in its UI before processing
 
-**Higher-fidelity option:** `chromium-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `chromium-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -377,7 +377,7 @@ can assert this.
 
 *Fidelity:* approximate — Best-effort reconstruction; the tool states the limitation in its UI before processing
 
-**Higher-fidelity option:** `chromium-worker` — requires the document worker described below; unavailable in Strict Local Mode.
+**Native server engine:** `chromium-worker` — executed by the engine deployed in this image.
 
 **Known limits**
 
@@ -491,8 +491,8 @@ can assert this.
 
 **Known limits**
 
-- Needs a local Ollama endpoint; otherwise a deterministic extractive summary is used
-- Blocked in Strict Local Mode when the endpoint is remote
+- Runs on Folio's server with a deterministic extractive summariser
+- No external AI provider, API key or paid credit is involved
 
 **Output validation performed**
 
@@ -504,8 +504,8 @@ can assert this.
 
 **Known limits**
 
-- Answers are grounded in retrieved passages with page citations
-- Needs Ollama for generative answers
+- Answers are extractive: ranked passages are quoted with page citations
+- No external AI provider is contacted
 
 **Output validation performed**
 
@@ -530,7 +530,7 @@ can assert this.
 **Known limits**
 
 - Layout is not re-flowed per language
-- Needs Ollama for real translation
+- Translation quality is limited to the extracted text
 
 **Output validation performed**
 
@@ -548,55 +548,49 @@ can assert this.
 
 - Delegates to the individual tools rather than duplicating logic
 
-## Engines that are *not* bundled
+## Engines deployed in this image
 
-These are documented candidates. They are **not installed in this image** and no tool invokes them.
-Enabling one requires: a licence entry in `THIRD_PARTY_LICENSES.md`, a worker service with resource
-limits, and real-file regression tests.
+Folio runs one processing architecture: the browser is a client and every document operation runs on
+Folio's own server.
 
-| Engine | Why it is not bundled | Resource requirement if added | Licence |
+| Engine | Deployed as | Used by | Licence |
 |---|---|---|---|
-| LibreOffice (headless) | ~500 MB–1 GB image weight, needs a native process per conversion | 1 vCPU, 1–2 GB RAM, 30 s timeout per document | MPL-2.0 (class C — review obligations before shipping) |
-| qpdf | Native binary; `pdf-lib` covers the structural operations Folio advertises | 128 MB RAM, sub-second per file | Apache-2.0 (class A) |
-| Apache PDFBox | JVM runtime | 512 MB heap | Apache-2.0 (class A) |
-| pyHanko | Python runtime; digital signatures need a certificate authority the user supplies | 256 MB RAM | MIT (class A) |
-| veraPDF | JVM runtime, large validation corpus | 1 GB heap | GPL-3.0 + MPL-2.0 (class D — **must not** be added without written approval) |
-| Sharp | Native `libvips` build; `canvas` covers the raster work Folio does | 256 MB RAM | Apache-2.0 (class A) |
-| Playwright + Chromium | ~400 MB image weight for HTML/URL rendering | 1 vCPU, 1 GB RAM | Apache-2.0 (class A) |
+| qpdf | `qpdf` binary | compress, repair, encrypt, decrypt, structural page work | Apache-2.0 (class B) |
+| poppler-utils | `pdftoppm`, `pdftotext`, `pdfinfo` | pdf-to-jpg, pdf-to-png, redact rasterisation, text extraction, page counts | GPL-2.0 programs invoked as separate processes (class B, documented) |
+| Tesseract | `tesseract-ocr` + English data | ocr | Apache-2.0 (class B) |
+| LibreOffice | `soffice --headless` | Office/HTML/Markdown/webpage → PDF and PDF → Office | MPL-2.0 (class C, obligations documented) |
+| pdf-lib | Node library | merge, extract, rearrange, rotate, watermark, forms, sign, editor overlays | MIT (class A) |
+| ImageMagick | `convert` | image normalisation for image-to-pdf | ImageMagick licence (class B) |
 
-### Deployment note
+Evaluation-only engines (`pyhanko-worker`, `verapdf-worker`) are not installed and no tool invokes
+them.
 
-The current deployment is a static build served by `server.mjs` on a single 1 vCPU / 1 GB instance.
-Native engines do not fit in that process and must not be added to it. A document worker is a
-separate service: it accepts a single file over an authenticated endpoint, processes it in an
-isolated temporary directory, returns the result, and deletes both input and output immediately
-(see `DEPLOYMENT.md` and `SECURITY_AND_PRIVACY.md`). Until such a worker exists, every tool listed
-above runs entirely in the browser and Strict Local Mode is a complete guarantee for them.
+### Resource plan
 
-## Strict Local Mode
+The runtime image has 1 vCPU / 1 GB. Native engines are serialised:
+`FOLIO_HEAVY_CONCURRENCY=1` for LibreOffice, Tesseract and poppler batches,
+`FOLIO_LIGHT_CONCURRENCY=2` for pdf-lib and qpdf work, with `FOLIO_JOB_TIMEOUT_MS=180000` and
+`FOLIO_ENGINE_TIMEOUT_MS=120000`. More concurrency needs a separate worker service — see
+`DEPLOYMENT.md`.
 
-Strict Local Mode is enforced in `src/lib/privacy.ts`, not merely advertised:
+## Processing architecture
 
-- Every outbound request must pass `guardedFetch`, which throws `LocalModeViolation` when the mode is
-  on and the destination is not loopback.
-- Loopback destinations (the user's own Ollama at `127.0.0.1:11434`) are permitted, so local AI keeps
-  working without any document leaving the machine.
-- The store registers its current mode with the guard, so the switch in the header takes effect for
-  every subsequent request in the same tab.
-- Every permitted transmission is recorded with its destination and purpose, and the log is
-  inspectable, so "nothing left your device" is verifiable rather than claimed.
+Every tool follows one path:
 
-**Tools available in Strict Local Mode:** 32 of 36.
+`User → Folio frontend → authenticated job API → engine → validated output → download`
 
-**Unavailable in Strict Local Mode:** `ai-summarize`, `ai-chat`, `ai-translate`, `ai-workspace` — these require the document worker.
+- A job is created with declared files, uploaded into an isolated temporary directory, then started.
+- The status endpoint exposes progress, stage text and cancellation.
+- Outputs are validated (present, non-empty, correct type) before a download link exists.
+- Temporary files are deleted after delivery; abandoned jobs expire automatically.
+- There is no local/cloud mode switch — users never choose where a document is processed.
 
 ## Selection policy
 
 1. Use the engine that performs the operation structurally; never re-render a document to simulate a
    structural edit.
-2. Prefer a browser engine when it reaches the required fidelity, so the document never leaves the
-   device.
+2. Keep the browser to previews: PDF.js renders pages, but processing happens on Folio's server.
 3. When a native engine would materially improve fidelity, declare it as `preferredWorker` and tell
    the user which engine produced their file.
 4. Never select an engine whose licence class is C or D.
-5. Never silently fall back from local to remote processing.
+5. Never substitute a lower-fidelity engine without recording a warning on the job.
