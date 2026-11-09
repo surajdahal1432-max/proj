@@ -332,7 +332,8 @@ test('encryption round-trips and rejects a wrong password', async () => {
   const encrypted = await encrypt.encryptPdf(fixture('simple.pdf'), { password: 'secret-pass', ownerPassword: 'owner-pass' })
   assert.equal(await encrypt.isEncrypted(encrypted), true)
 
-  await assert.rejects(() => PDFDocument.load(await bytesOf(encrypted)))
+  const encryptedBytes = await bytesOf(encrypted)
+  await assert.rejects(() => PDFDocument.load(encryptedBytes))
 
   const decrypted = await encrypt.decryptPdf(encrypted, 'secret-pass')
   const pages = await pdfPages(decrypted.blob)
