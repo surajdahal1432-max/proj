@@ -208,7 +208,7 @@ test('watermark and page numbers are embedded in the PDF text layer', async () =
 
   const numbered = await pdfLib.addPageNumbers(fixture('simple.pdf'), {
     position: 'bottom-center',
-    format: '{n} / {total}',
+    format: 'n-of-total',
     fontSize: 10,
     color: '#000000',
     startAt: 1,
