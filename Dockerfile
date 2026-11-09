@@ -10,19 +10,44 @@ COPY . .
 RUN npm run build
 
 # ---- runtime stage --------------------------------------------------------
-# The app is a client-side SPA. The Node static server is used (instead of a
-# generic static server) because the PDF.js worker is an ES module served as
-# .mjs and must be returned with a JavaScript MIME type, plus gzip support.
+# Folio processes documents on its own server. The native engines below are the
+# actual processors; the Node process only orchestrates jobs and serves the SPA.
 FROM node:26-alpine AS runtime
-RUN apk upgrade --no-cache && apk add --no-cache --upgrade 'zlib>=1.4'
+RUN apk upgrade --no-cache \
+ && apk add --no-cache --upgrade 'zlib>=1.4' \
+      qpdf \
+      poppler-utils \
+      tesseract-ocr \
+      tesseract-ocr-data-eng \
+      libreoffice-writer \
+      libreoffice-calc \
+      libreoffice-impress \
+      fontconfig \
+      ttf-liberation \
+      ttf-dejavu \
+      imagemagick
+
 WORKDIR /app
 ENV NODE_ENV=production
 
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
+
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/server.mjs ./server.mjs
+COPY server ./server
+COPY server.mjs ./server.mjs
 
+# LibreOffice and Tesseract write profiles/temp data into $HOME.
+ENV HOME=/home/node
 ENV PORT=3000
-EXPOSE 3000
+ENV FOLIO_ROOT=/app/dist
+ENV FOLIO_JOB_DIR=/tmp/folio-jobs
+# A 1 GB / 1 vCPU app can only run one heavy native engine at a time.
+ENV FOLIO_HEAVY_CONCURRENCY=1
+ENV FOLIO_LIGHT_CONCURRENCY=2
+ENV FOLIO_JOB_TIMEOUT_MS=180000
+ENV FOLIO_ENGINE_TIMEOUT_MS=120000
 
+EXPOSE 3000
 USER node
 CMD ["node", "server.mjs"]
