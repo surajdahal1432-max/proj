@@ -8,9 +8,9 @@
 
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { createServer } from 'node:net'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
@@ -235,13 +235,34 @@ test('word-to-pdf produces a PDF with no raw OOXML markup', async (t) => {
   assert.doesNotMatch(extracted, /<\/?w:[a-zA-Z]+/, 'converted PDF leaked raw OOXML markup')
 })
 
-test('pdf-to-jpg renders a real JPEG', async (t) => {
+test('pdf-to-jpg renders real JPEG images', async (t) => {
   if (!ready.has('pdf-to-jpg')) return t.skip('poppler is not installed in this environment')
   const job = await runJob('pdf-to-jpg', ['simple.pdf'], { dpi: 72 })
+  assert.ok(job.outputs.length > 0, 'no images were produced')
+  for (const output of job.outputs) assert.match(output.name, /\.jpe?g$/i)
+
   const { buffer, type } = await download(job)
-  assert.match(type, /image\/jpeg/)
-  assert.equal(buffer[0], 0xff)
-  assert.equal(buffer[1], 0xd8)
+  if (job.outputs.length === 1) {
+    assert.match(type, /image\/jpeg/)
+    assert.deepEqual([...buffer.subarray(0, 2)], [0xff, 0xd8])
+    return
+  }
+
+  // Multi-page jobs are delivered as a zip bundle: prove the archive holds JPEGs.
+  assert.match(type, /zip/)
+  assert.equal(buffer.subarray(0, 2).toString('latin1'), 'PK')
+  const dir = await mkdtemp(join(tmpdir(), 'folio-zip-'))
+  try {
+    const zipPath = join(dir, 'images.zip')
+    await writeFile(zipPath, buffer)
+    execFileSync('unzip', ['-o', '-q', zipPath, '-d', join(dir, 'out')])
+    const files = (await readdir(join(dir, 'out'))).filter((name) => /\.jpe?g$/i.test(name))
+    assert.ok(files.length >= 2, `archive held ${files.length} images`)
+    const first = await readFile(join(dir, 'out', files[0]))
+    assert.deepEqual([...first.subarray(0, 2)], [0xff, 0xd8])
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })
 
 test('cross-origin job creation is rejected', async () => {
