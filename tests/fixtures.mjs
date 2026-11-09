@@ -188,7 +188,7 @@ async function docxFile(imagePath) {
             children: [
               new TextRun('Rome began as a settlement on the Tiber. '),
               new TextRun({ text: 'This sentence is bold.', bold: true }),
-              new TextRun(' This one is italic.', italics: true }),
+              new TextRun({ text: ' This one is italic.', italics: true }),
               new TextRun({ text: ' This one is underlined.', underline: {} }),
             ],
           }),
