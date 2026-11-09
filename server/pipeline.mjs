@@ -169,6 +169,7 @@ handlers.split = async ({ files, options, dir, ctx }) => {
     ctx.onProgress?.(((index + 1) / ranges.length) * 90)
   }
   if (outputs.length === 1) return { outputs, meta: { parts: 1, pages } }
+  if (options.individual) return { outputs, meta: { parts: outputs.length, pages } }
   return { outputs: await zipOutputs(outputs, dir, `${base}-split`), meta: { parts: outputs.length, pages } }
 }
 
