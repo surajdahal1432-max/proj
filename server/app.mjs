@@ -415,4 +415,4 @@ export function createApp() {
   return { server }
 }
 
-export { handleApi, HttpError, sendJson, safePath }
+export { handleApi, HttpError, sendJson }
