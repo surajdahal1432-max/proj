@@ -17,8 +17,6 @@ ship this file together with the full licence texts referenced below.
 | `entities` 9.0.0 | BSD-2-Clause | https://github.com/fb55/entities |
 | `idb-keyval` 6.3.0 | Apache-2.0 | https://github.com/jakearchibald/idb-keyval |
 | `jsdom > webidl-conversions` 8.0.1 | BSD-2-Clause | https://github.com/jsdom/webidl-conversions |
-| `jszip` 3.10.2 | MIT OR GPL-3.0-or-later | https://github.com/Stuk/jszip |
-| `pako` 1.0.11 | MIT AND Zlib | nodeca/pako |
 | `PDF.js cMap data` bundled with pdfjs-dist | Apache-2.0 | https://github.com/mozilla/pdf.js |
 | `PDF.js standard font data (Foxit core fonts)` bundled with pdfjs-dist | BSD-3-Clause (see node_modules/pdfjs-dist/standard_fonts/LICENSE_FOXIT) | https://github.com/mozilla/pdf.js |
 | `pdfjs-dist` 6.5.438 | Apache-2.0 | https://github.com/mozilla/pdf.js |

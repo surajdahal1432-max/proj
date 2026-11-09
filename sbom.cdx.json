@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:folio-1a1bf5b8d00",
+  "serialNumber": "urn:uuid:folio-1a1bf5bdfc8",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-09T08:10:10.560Z",
+    "timestamp": "2026-11-09T08:10:31.752Z",
     "tools": [
       {
         "vendor": "Folio",
@@ -7086,7 +7086,7 @@
       "properties": [
         {
           "name": "folio:class",
-          "value": "D"
+          "value": "A"
         },
         {
           "name": "folio:purpose",
@@ -7656,7 +7656,7 @@
       "properties": [
         {
           "name": "folio:class",
-          "value": "C"
+          "value": "A"
         },
         {
           "name": "folio:purpose",

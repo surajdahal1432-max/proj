@@ -19,7 +19,7 @@ import { join } from 'node:path'
 const ROOT = process.cwd()
 
 /** Licence identifiers that are safe for commercial distribution. */
-const CLASS_A = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Unlicense', 'CC0-1.0', 'BlueOak-1.0.0']
+const CLASS_A = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Unlicense', 'CC0-1.0', 'BlueOak-1.0.0', 'Zlib', 'X11', 'MIT-0', 'OFL-1.1', 'Python-2.0', 'CC-BY-4.0', 'WTFPL']
 /** Permissive but with attribution/notice obligations we must ship. */
 const CLASS_B = ['BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', 'OFL-1.1', 'MIT-0', 'Python-2.0', 'CC-BY-4.0']
 /** Weak/limited copyleft: usable only after reviewing the exact obligations. */
@@ -102,16 +102,42 @@ function normaliseLicence(raw) {
   return value.replace(/^\(|\)$/g, '').trim()
 }
 
-function classify(licence) {
-  const ids = licence.split(/\s+OR\s+|\s+AND\s+/).map((part) => part.trim())
-  if (ids.some((id) => CLASS_D.includes(id))) return 'D'
-  if (ids.some((id) => CLASS_C.includes(id))) return 'C'
-  if (ids.every((id) => CLASS_A.includes(id))) {
-    // Attribution-bearing permissive licences carry notice obligations.
-    return ids.some((id) => CLASS_B.includes(id)) ? 'B' : 'A'
+/**
+ * Classify a licence *expression*, not just a licence id.
+ *
+ * npm packages frequently offer alternatives (`MIT OR GPL-3.0`) or conjunctions
+ * (`MIT AND Zlib`). Taking the presence of a copyleft id as an automatic rejection is wrong: for
+ * `MIT OR GPL-3.0` we simply elect MIT. Severity is therefore computed per OR-alternative and the
+ * most permissive alternative wins; the elected expression is recorded for the notices file.
+ */
+function classifyExpression(licence) {
+  const alternatives = licence
+    .replace(/[()]/g, ' ')
+    .split(/\s+OR\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  const rank = { A: 0, B: 1, C: 2, D: 3 }
+  let best = { klass: 'D', elected: licence }
+
+  for (const alternative of alternatives.length ? alternatives : [licence]) {
+    const ids = alternative.split(/\s+AND\s+/i).map((id) => id.trim()).filter(Boolean)
+    let klass = 'A'
+    for (const id of ids) {
+      if (CLASS_D.includes(id)) klass = 'D'
+      else if (CLASS_C.includes(id) && rank[klass] < rank.C) klass = 'C'
+      else if (CLASS_B.includes(id) && rank[klass] < rank.B) klass = 'B'
+      else if (!CLASS_A.includes(id) && rank[klass] < rank.C) klass = 'C'
+      if (klass === 'D') break
+    }
+    if (rank[klass] < rank[best.klass]) best = { klass, elected: alternative }
   }
-  if (ids.some((id) => CLASS_B.includes(id))) return 'B'
-  return 'C'
+
+  return best
+}
+
+function classify(licence) {
+  return classifyExpression(licence).klass
 }
 
 function readJson(path, fallback = null) {
@@ -151,12 +177,13 @@ for (const [path, entry] of Object.entries(lock.packages ?? {})) {
     notices: classify(licence) === 'A' ? 'none beyond the licence text' : 'retain copyright + licence notice',
     modifications: 'none',
     klass: classify(licence),
+    elected: classifyExpression(licence).elected,
     direct: isDirect,
   })
 }
 
 for (const asset of BUNDLED_ASSETS) {
-  components.push({ ...asset, direct: false })
+  components.push({ ...asset, elected: asset.license, direct: false })
 }
 
 components.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))
@@ -173,6 +200,7 @@ const csvHeader = [
   'package',
   'version',
   'license',
+  'license_elected',
   'class',
   'direct',
   'source_repository',
@@ -187,6 +215,7 @@ const csvRows = components.map((c) =>
     c.name,
     c.version,
     c.license,
+    c.elected,
     c.klass,
     c.direct ? 'direct' : 'transitive',
     c.repository,
