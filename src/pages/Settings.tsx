@@ -17,15 +17,13 @@ import { useAppStore } from '@/store/useAppStore'
 import { ToolPanel } from '@/components/ToolShell'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/feedback'
-import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from '@/components/ui/controls'
+import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/controls'
 import { useToast } from '@/components/ui/overlays'
 
 export function SettingsPage() {
   const { toast } = useToast()
   const theme = useAppStore((state) => state.theme)
   const setTheme = useAppStore((state) => state.setTheme)
-  const localMode = useAppStore((state) => state.localMode)
-  const setLocalMode = useAppStore((state) => state.setLocalMode)
 
   const host = useAppStore((state) => state.ollamaHost)
   const model = useAppStore((state) => state.ollamaModel)
