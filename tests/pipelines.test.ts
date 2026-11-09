@@ -112,15 +112,35 @@ async function imageTransforms(blob: Blob): Promise<number[][]> {
     const page = await doc.getPage(1)
     const ops = await page.getOperatorList()
     const found: number[][] = []
-    // pdf-lib emits the placement as a separate transform before painting the
-    // image, so track the most recent transform instead of reading paint args.
-    let matrix: number[] | null = null
+    type Matrix = [number, number, number, number, number, number]
+    const identity: Matrix = [1, 0, 0, 1, 0, 0]
+    const multiply = (m: Matrix, n: number[]): Matrix => {
+      const [a1, b1, c1, d1, e1, f1] = m
+      const [a2, b2, c2, d2, e2, f2] = n as Matrix
+      return [
+        a1 * a2 + b1 * c2,
+        a1 * b2 + b1 * d2,
+        c1 * a2 + d1 * c2,
+        c1 * b2 + d1 * d2,
+        e1 * a2 + f1 * c2 + e2,
+        e1 * b2 + f1 * d2 + f2,
+      ]
+    }
+    // Images are painted with the *effective* transform, which is the product
+    // of every cm since the matching q — not just the last one pdf-lib emits.
+    let ctm: Matrix = [...identity]
+    const stack: Matrix[] = []
     ops.fnArray.forEach((fn, index) => {
       const args = ops.argsArray[index] as unknown[]
-      if (fn === pdfjs.OPS.transform) {
-        matrix = (args.length === 1 && Array.isArray(args[0]) ? args[0] : args) as number[]
+      if (fn === pdfjs.OPS.save) {
+        stack.push([...ctm])
+      } else if (fn === pdfjs.OPS.restore) {
+        ctm = stack.pop() ?? [...identity]
+      } else if (fn === pdfjs.OPS.transform) {
+        const m = (args.length === 1 && Array.isArray(args[0]) ? args[0] : args) as number[]
+        if (m.length === 6) ctm = multiply(ctm, m)
       } else if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintInlineImageXObject) {
-        if (matrix && matrix.length === 6) found.push(matrix)
+        found.push([...ctm])
       }
     })
     return found
