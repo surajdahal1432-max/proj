@@ -89,20 +89,17 @@ export function SettingsPage() {
         </ToolPanel>
 
         <ToolPanel
-          title="Strict local-only mode"
-          description="When enabled, Folio never contacts a remote worker. Everything is processed by the in-browser engine."
+          title="Processing"
+          description="Every tool runs on Folio's own processing service. Files are uploaded only when you start a job and are deleted after your download."
         >
-          <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className={localMode ? 'h-4 w-4 text-emerald-500' : 'h-4 w-4 text-muted-foreground'} />
-              <div>
-                <p className="text-sm font-medium">{localMode ? 'Local engine active' : 'Cloud workers allowed'}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {localMode ? 'No file leaves this browser tab.' : 'Advanced server processing may be used when required.'}
-                </p>
-              </div>
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-card/50 px-3 py-2.5">
+            <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500" />
+            <div>
+              <p className="text-sm font-medium">Server engine active</p>
+              <p className="text-[11px] text-muted-foreground">
+                Jobs run in isolated temporary directories with automatic cleanup and expiry.
+              </p>
             </div>
-            <Switch checked={localMode} onCheckedChange={setLocalMode} aria-label="Toggle strict local mode" />
           </div>
         </ToolPanel>
 

@@ -1,11 +1,10 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ToolDefinition } from '@/lib/tools'
 import { CATEGORIES } from '@/lib/tools'
 import { Badge } from '@/components/ui/feedback'
-import { useAppStore } from '@/store/useAppStore'
 
 export interface ToolShellProps {
   tool: ToolDefinition
