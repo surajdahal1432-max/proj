@@ -129,8 +129,8 @@ export async function ocrPdf(file: File, options: OcrOptions = {}): Promise<{
   for (let index = 0; index < rasters.length; index++) {
     const raster = rasters[index]
     const result = pages[index]
-    const pageWidth = (raster.width * 72) / dpi
-    const pageHeight = (raster.height * 72) / dpi
+    const pageWidth = raster.pointWidth ?? (raster.width * 72) / dpi
+    const pageHeight = raster.pointHeight ?? (raster.height * 72) / dpi
     const page = doc.addPage([pageWidth, pageHeight])
     const image = await doc.embedJpg(raster.bytes)
     page.drawImage(image, { x: 0, y: 0, width: pageWidth, height: pageHeight })

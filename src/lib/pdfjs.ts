@@ -93,8 +93,9 @@ export async function renderPageIntoCanvas(
   canvas: HTMLCanvasElement,
   scale: number,
   rotation = 0,
+  pixelRatio?: number,
 ): Promise<{ width: number; height: number; viewportWidth: number; viewportHeight: number }> {
-  const dpr = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2)
+  const dpr = pixelRatio ?? Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2)
   const viewport = page.getViewport({ scale, rotation })
   const pixelWidth = Math.floor(viewport.width * dpr)
   const pixelHeight = Math.floor(viewport.height * dpr)

@@ -46,42 +46,29 @@ export function titleCase(value: string): string {
 export function parsePageRanges(input: string, pageCount: number): number[] {
   const result: number[] = []
   const seen = new Set<number>()
-  const tokens = input
-    .split(/[,;\s]+/)
-    .map((t) => t.trim())
-    .filter(Boolean)
-
+  const add = (page: number) => {
+    if (page >= 1 && page <= pageCount && !seen.has(page - 1)) { seen.add(page - 1); result.push(page - 1) }
+  }
+  const normalized = input
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/(\d)\s*-\s*(\d)/g, '$1-$2')
+    .replace(/(\d)\s*-(?=\s*(?:[,;]|$))/g, '$1-')
+  const tokens = normalized.split(/[,;\s]+/).map((t) => t.trim()).filter(Boolean)
   for (const token of tokens) {
-    const range = /^(\d+)\s*[-–]\s*(\d+)$/.exec(token)
+    const range = /^(\d+)-(\d+)$/.exec(token)
     if (range) {
-      const start = clamp(parseInt(range[1], 10), 1, pageCount)
-      const end = clamp(parseInt(range[2], 10), 1, pageCount)
-      const [from, to] = start <= end ? [start, end] : [end, start]
-      for (let p = from; p <= to; p++) {
-        if (!seen.has(p - 1)) {
-          seen.add(p - 1)
-          result.push(p - 1)
-        }
-      }
+      const a = parseInt(range[1], 10), b = parseInt(range[2], 10)
+      const [from, to] = a <= b ? [a, b] : [b, a]
+      if (to < 1 || from > pageCount) continue
+      for (let p = Math.max(1, from); p <= Math.min(pageCount, to); p++) add(p)
       continue
     }
+    const openEnded = /^(\d+)-$/.exec(token)
+    if (openEnded) { for (let p = Math.max(1, parseInt(openEnded[1], 10)); p <= pageCount; p++) add(p); continue }
     const single = /^(\d+)$/.exec(token)
-    if (single) {
-      const page = parseInt(single[1], 10)
-      if (page >= 1 && page <= pageCount && !seen.has(page - 1)) {
-        seen.add(page - 1)
-        result.push(page - 1)
-      }
-      continue
-    }
+    if (single) { add(parseInt(single[1], 10)); continue }
     const negative = /^-(\d+)$/.exec(token)
-    if (negative) {
-      const page = pageCount - parseInt(negative[1], 10) + 1
-      if (page >= 1 && page <= pageCount && !seen.has(page - 1)) {
-        seen.add(page - 1)
-        result.push(page - 1)
-      }
-    }
+    if (negative) add(pageCount - parseInt(negative[1], 10) + 1)
   }
   return result
 }
