@@ -9,15 +9,17 @@ rendered page or a successful build is never counted as a passing tool.
 | Check | Command | Result |
 |---|---|---|
 | TypeScript (strict) | `npx tsc --noEmit` | **pass**, 0 errors |
-| Production build | `npm run build` | **pass** (1934 modules; `dist/pdfjs` assets copied) |
-| Real-file pipelines | `npm run test:pipelines` | **15/15 pass** |
-| Regression suite | `npm run test:regression` | **17/17 pass** |
-| Unit tests | `npm test` (`node --test tests/*.test.mjs`) | pass |
-| Live app (deployed) | Chromium 1280 px: `/`, `/tools`, `/tool/merge` | **8/8 steps pass**, 0 console/page errors |
-| Deployment | `build-1794210003344-d57cde54` | **ready**, HTTP 200, https://zbaokbbol7.dev.onappjet.com |
+| Production build | `npm run build` | **pass** (1936 modules; `dist/pdfjs` assets copied) |
+| Full test suite | `npm run test:all` | **pass**, 74 tests, 0 failures |
+| Organize/extract | `npm run test:organize` | **pass**, 19/19 |
+| Privacy guard | `npm run test:privacy` | **pass**, 11/11 |
+| Dependency security | OSV preset | **pass**, 362 packages, 0 high/critical, 2 moderate (react-router v6) |
+| Licence audit | `npm run license:audit` | **pass**, 371 components: 348 A / 23 B / 0 C / 0 D |
+| Engine registry | `npm run docs:engines` | **pass**, 15 engines / 36 tools |
 
-The live check asserted the hero copy, the tool-library navigation link, the tool listing containing
-Merge PDF, and that `/tool/merge` exposes a working file input and its Merge action.
+Detailed evidence, including what each suite asserts and what is *not* covered, is in
+`TEST_REPORT.md`. Licence obligations are in `THIRD_PARTY_LICENSES.md` / `THIRD_PARTY_NOTICES.md`, and
+engine selection per tool is in `ENGINE_REGISTRY.md` (generated from `src/lib/engines.ts`).
 
 ---
 
