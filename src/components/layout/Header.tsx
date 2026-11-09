@@ -81,20 +81,11 @@ export function Header() {
           </span>
         </Link>
 
-        <Tooltip label={localMode ? 'Strict local-only mode is on' : 'Switch to strict local-only mode'}>
-          <button
-            type="button"
-            onClick={() => setLocalMode(!localMode)}
-            className={cn(
-              'ml-1 hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors md:inline-flex',
-              localMode
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400',
-            )}
-          >
-            {localMode ? <ShieldCheck className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
-            {localMode ? 'Local Engine Active' : 'Cloud Worker'}
-          </button>
+        <Tooltip label="Documents are processed by Folio's own processing service">
+          <span className="ml-1 hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 md:inline-flex">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Server Engine
+          </span>
         </Tooltip>
 
         <nav className="mx-auto hidden items-center gap-0.5 lg:flex" aria-label="Primary">
@@ -115,18 +106,6 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
-          <div className="hidden items-center gap-2 rounded-full border border-border bg-card/60 px-2.5 py-1.5 xl:flex">
-            <Switch
-              id="local-mode"
-              checked={localMode}
-              onCheckedChange={setLocalMode}
-              aria-label="Toggle strict local-only mode"
-            />
-            <label htmlFor="local-mode" className="cursor-pointer text-xs font-medium">
-              Local only
-            </label>
-          </div>
-
           <Tooltip label="Processing history">
             <Button
               variant="ghost"
@@ -188,16 +167,9 @@ export function Header() {
               </NavLink>
             ))}
           </nav>
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-card/60 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              {localMode ? (
-                <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              ) : (
-                <Cloud className="h-4 w-4 text-sky-500" />
-              )}
-              <span className="text-sm font-medium">Strict local-only mode</span>
-            </div>
-            <Switch checked={localMode} onCheckedChange={setLocalMode} aria-label="Toggle local mode" />
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5">
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-medium">Processed by Folio&apos;s server</span>
           </div>
         </div>
       ) : null}
