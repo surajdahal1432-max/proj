@@ -23,6 +23,26 @@ engines that actually process documents:
 
 `USER node` drops privileges; LibreOffice and Tesseract need a writable `HOME`, set to `/home/node`.
 
+### Base image decision (image security scan)
+
+The runtime stage deliberately stays on Alpine. Two Debian-based variants were built and scanned:
+
+| Runtime base | Blocking image findings | Examples |
+|---|---|---|
+| `node:26-alpine` (current) | 4 | glib 2.88.1-r1, imagemagick 7.1.2.35-r0 |
+| `node:26-bookworm-slim` | 135 | curl, glibc, ImageMagick — several with no fix published |
+| `node:26-trixie-slim` | 135 | curl 8.14.1-2+deb13u7, glibc 2.41 — no fix published |
+
+All four Alpine findings report a "fixed version" that is **older** than the version
+installed (glib: fixed `2.66.6-r0`, installed `2.88.1-r1`; ImageMagick: fixed
+`7.0.10.31-r0`, installed `7.1.2.35-r0`). Both installed builds already contain those
+upstream fixes, and Alpine v3.24 carries no newer build of either package, so no
+`apk upgrade` can change the outcome. Clearing the findings by removing
+LibreOffice/poppler/ImageMagick would only delete the engines that perform Office
+conversion, OCR rasterisation and image normalisation, so the engines are kept and the
+scan result is reported rather than suppressed. Publishing this image needs the advisory
+data corrected on the scanner side; the previously deployed build stays live until then.
+
 ## Environment variables
 
 | Variable | Default | Meaning |
