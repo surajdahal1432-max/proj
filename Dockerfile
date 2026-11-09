@@ -12,20 +12,29 @@ RUN npm run build
 # ---- runtime stage --------------------------------------------------------
 # Folio processes documents on its own server. The native engines below are the
 # actual processors; the Node process only orchestrates jobs and serves the SPA.
-FROM node:26-alpine AS runtime
-RUN apk upgrade --no-cache \
- && apk add --no-cache --upgrade 'zlib>=1.4' \
+#
+# Debian (not Alpine) is used deliberately: the distributor ships patched glib
+# and ImageMagick, which Alpine v3.24 still reports as vulnerable in the image
+# security scan even though it carries no newer build of either package.
+FROM node:26-bookworm-slim AS runtime
+
+RUN apt-get update \
+ && apt-get -y upgrade \
+ && apt-get install -y --no-install-recommends \
       qpdf \
       poppler-utils \
       tesseract-ocr \
-      tesseract-ocr-data-eng \
+      tesseract-ocr-eng \
+      tesseract-ocr-osd \
       libreoffice-writer \
       libreoffice-calc \
       libreoffice-impress \
-      fontconfig \
-      ttf-liberation \
-      ttf-dejavu \
-      imagemagick
+      fonts-liberation \
+      fonts-dejavu-core \
+      imagemagick \
+      ca-certificates \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 ENV NODE_ENV=production
