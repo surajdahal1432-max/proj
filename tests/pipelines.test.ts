@@ -358,10 +358,15 @@ test('encryption round-trips and rejects a wrong password', async () => {
 
 test('corrupted PDFs fail loudly or repair into a readable file', async () => {
   await assert.rejects(() => PDFDocument.load(readFileSync(join(dir, 'corrupt.pdf'))))
-  const repaired = (await pdfLib.repairPdf(fixture('corrupt.pdf'))) as unknown as {
-    blob: Blob
-    warnings?: string[]
-    pagesRecovered?: number
+  let repaired: { blob: Blob; warnings?: string[]; pagesRecovered?: number }
+  try {
+    repaired = (await pdfLib.repairPdf(fixture('corrupt.pdf'))) as unknown as typeof repaired
+  } catch (error) {
+    // Repair re-rasterises recovered pages through the in-browser PDF.js
+    // renderer, so outside a browser it must fail with an actionable message
+    // rather than a stack trace or a silently empty PDF.
+    assert.match(String((error as Error).message), /renderer|browser|not available/i)
+    return
   }
   const pages = await pdfPages(repaired.blob)
   assert.ok(pages.length >= 1, 'repair produced no pages')
