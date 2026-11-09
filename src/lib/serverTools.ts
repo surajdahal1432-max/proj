@@ -242,8 +242,12 @@ export async function textToPdfFile(file: File, _layout: unknown = {}): Promise<
   return named(await runTool('markdown-to-pdf', [file]), 'a PDF')
 }
 
-export async function urlToPdf(url: string, _layout: unknown = {}): Promise<NamedBlob> {
-  return named(await runTool('webpage-to-pdf', [], { url }), 'a PDF')
+export async function urlToPdf(
+  url: string,
+  _layout: unknown = {},
+): Promise<{ file: NamedBlob; note: string }> {
+  const file = named(await runTool('webpage-to-pdf', [], { url }), 'a PDF')
+  return { file, note: "Captured by the server's headless Chromium renderer." }
 }
 
 /* ----------------------------------- OCR ---------------------------------- */

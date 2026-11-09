@@ -345,7 +345,7 @@ export function OcrTool({ tool }: { tool: ToolDefinition }) {
       record(tool, file.name, { name, size: outcome.blob.size })
       toast({
         title: 'OCR complete',
-        description: `${Math.round(outcome.confidence)}% average confidence across ${outcome.pages.length} page${outcome.pages.length === 1 ? '' : 's'}.`,
+        description: `${Math.round(outcome.confidence)}% average confidence across ${outcome.pages} page${outcome.pages === 1 ? '' : 's'}.`,
         variant: 'success',
       })
     } catch (error) {
