@@ -200,36 +200,33 @@ export async function pdfToImages(
   options: { format?: 'png' | 'jpeg'; dpi?: number; password?: string; onProgress?: (done: number, total: number) => void } = {},
 ): Promise<NamedBlob[]> {
   const { format = 'png', dpi = 150 } = options
-  const pages = await rasterizePdf(file, {
-    dpi,
-    quality: format === 'jpeg' ? 0.9 : 1,
-    password: options.password,
-    onProgress: options.onProgress,
-  })
+  const base = baseName(file.name)
+
+  if (format === 'jpeg') {
+    const pages = await rasterizePdf(file, {
+      dpi,
+      quality: 0.9,
+      password: options.password,
+      onProgress: options.onProgress,
+    })
+    return pages.map((page, index) => ({
+      name: `${base}-page-${index + 1}.jpg`,
+      blob: new Blob([page.bytes as unknown as BlobPart], { type: 'image/jpeg' }),
+    }))
+  }
 
   const buffer = await file.arrayBuffer()
-  const { loadPdf } = await import('./pdfjs')
+  const { loadPdf, renderPageToDataUrl } = await import('./pdfjs')
   const doc = await loadPdf(buffer, { password: options.password })
-  const base = baseName(file.name)
 
   const results: NamedBlob[] = []
   try {
-    for (let index = 0; index < pages.length; index++) {
-      const page = pages[index]
-      if (format === 'jpeg') {
-        results.push({
-          name: `${base}-page-${index + 1}.jpg`,
-          blob: new Blob([page.bytes as unknown as BlobPart], { type: 'image/jpeg' }),
-        })
-      } else {
-        const pdfPage = await doc.getPage(index + 1)
-        const { renderPageToDataUrl } = await import('./pdfjs')
-        const rendered = await renderPageToDataUrl(pdfPage, { scale: Math.min(4, dpi / 72), format: 'png' })
-        const response = await fetch(rendered.dataUrl)
-        const blob = await response.blob()
-        results.push({ name: `${base}-page-${index + 1}.png`, blob })
-        pdfPage.cleanup()
-      }
+    for (let index = 1; index <= doc.numPages; index++) {
+      const page = await doc.getPage(index)
+      const rendered = await renderPageToDataUrl(page, { scale: Math.min(4, dpi / 72), format: 'png', pixelRatio: 1 })
+      results.push({ name: `${base}-page-${index + 1}.png`, blob: rendered.blob })
+      page.cleanup()
+      options.onProgress?.(index, doc.numPages)
     }
   } finally {
     await closePdf(doc)

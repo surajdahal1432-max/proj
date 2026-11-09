@@ -37,6 +37,8 @@ export async function loadPdf(source: ArrayBuffer | Uint8Array, options: LoadOpt
     standardFontDataUrl: `${ASSET_BASE}standard_fonts/`,
     cMapUrl: `${ASSET_BASE}cmaps/`,
     cMapPacked: true,
+    wasmUrl: `${ASSET_BASE}wasm/`,
+    iccUrl: `${ASSET_BASE}iccs/`,
     useSystemFonts: true,
   })
 

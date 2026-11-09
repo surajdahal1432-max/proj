@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
-import { extname, join, normalize, resolve } from 'node:path'
+import { extname, join, normalize, resolve, sep } from 'node:path'
 import { createServer } from 'node:http'
 import { createGzip } from 'node:zlib'
 
@@ -32,9 +32,16 @@ const MIME = {
 const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.txt', '.map'])
 
 function safePath(urlPath) {
-  const decoded = decodeURIComponent(urlPath.split('?')[0])
-  const rel = normalize(decoded).replace(/^(\.\.[/\\])+/, '')
-  return join(ROOT, rel)
+  let decoded
+  try {
+    decoded = decodeURIComponent(urlPath.split('?')[0])
+  } catch {
+    return null
+  }
+  if (decoded.includes('\u0000')) return null
+  const full = join(ROOT, normalize(decoded))
+  if (full === ROOT || full.startsWith(ROOT + sep)) return full
+  return null
 }
 
 function send(res, status, body, headers = {}) {
@@ -44,25 +51,30 @@ function send(res, status, body, headers = {}) {
 
 const server = createServer((req, res) => {
   const url = req.url || '/'
-  let filePath = safePath(url)
+  const filePath = safePath(url)
 
-  if (!existsSync(filePath) || (existsSync(filePath) && statSync(filePath).isDirectory())) {
-    const indexCandidate = join(filePath, 'index.html')
+  if (!filePath) return send(res, 400, 'Bad request')
+
+  let target = filePath
+  if (!existsSync(target) || statSync(target).isDirectory()) {
+    const indexCandidate = join(target, 'index.html')
     if (existsSync(indexCandidate) && statSync(indexCandidate).isFile()) {
-      filePath = indexCandidate
+      target = indexCandidate
+    } else if (extname(target)) {
+      return send(res, 404, 'Not found')
     } else {
-      // SPA fallback
-      filePath = join(ROOT, 'index.html')
+      // SPA fallback for client-side routes
+      target = join(ROOT, 'index.html')
     }
   }
 
-  if (!existsSync(filePath)) {
+  if (!existsSync(target)) {
     return send(res, 404, 'Not found')
   }
 
-  const ext = extname(filePath).toLowerCase()
-  const stat = statSync(filePath)
-  const immutable = /\/assets\//.test(filePath)
+  const ext = extname(target).toLowerCase()
+  const stat = statSync(target)
+  const immutable = /\/assets\//.test(target)
   const headers = {
     'Content-Type': MIME[ext] || 'application/octet-stream',
     'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache, must-revalidate',
@@ -77,13 +89,13 @@ const server = createServer((req, res) => {
     headers['Vary'] = 'Accept-Encoding'
     res.writeHead(200, headers)
     if (req.method === 'HEAD') return res.end()
-    return createReadStream(filePath).pipe(createGzip({ level: 6 })).pipe(res)
+    return createReadStream(target).pipe(createGzip({ level: 6 })).pipe(res)
   }
 
   headers['Content-Length'] = String(stat.size)
   res.writeHead(200, headers)
   if (req.method === 'HEAD') return res.end()
-  createReadStream(filePath).pipe(res)
+  createReadStream(target).pipe(res)
 })
 
 server.listen(PORT, HOST, () => {
