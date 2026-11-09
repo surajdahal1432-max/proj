@@ -379,4 +379,51 @@ export async function pdfInfo(path) {
   return { pages: doc.getPageCount(), dimensions: pages }
 }
 
+/* ----------------------------- signatures ----------------------------- */
+
+/** Decode a data: URL or a bare base64 payload into bytes. */
+export function decodeDataUrl(value) {
+  const text = String(value || '')
+  const match = /^data:([^;,]*)(;base64)?,(.*)$/s.exec(text)
+  if (match) {
+    return match[2]
+      ? Buffer.from(match[3], 'base64')
+      : Buffer.from(decodeURIComponent(match[3]), 'utf8')
+  }
+  return Buffer.from(text, 'base64')
+}
+
+/**
+ * Place signature images at explicit positions.
+ * `x` / `y` are PDF points measured from the bottom-left corner, `page` is 1-based.
+ */
+export async function applySignatures(inputPath, signatures, outputPath) {
+  const doc = await loadPdf(inputPath)
+  const pages = doc.getPages()
+  if (!pages.length) throw new Error('The document has no pages')
+  const placed = []
+  const list = Array.isArray(signatures) ? signatures : []
+  for (const signature of list) {
+    const bytes = decodeDataUrl(signature.image)
+    if (!bytes.length) throw new Error('A signature image is empty or unreadable')
+    const pageIndex = Math.min(pages.length - 1, Math.max(0, (Number(signature.page) || 1) - 1))
+    const page = pages[pageIndex]
+    const { image } = await embedImage(doc, bytes)
+    const width = Math.max(4, Number(signature.width) || image.width)
+    const height = Math.max(4, Number(signature.height) || (width * image.height) / image.width)
+    page.drawImage(image, {
+      x: Number(signature.x) || 0,
+      y: Number(signature.y) || 0,
+      width,
+      height,
+      rotate: degrees(Number(signature.rotate) || 0),
+      opacity: Math.min(1, Math.max(0.05, Number(signature.opacity) || 1)),
+    })
+    placed.push({ page: pageIndex + 1, width: Math.round(width), height: Math.round(height) })
+  }
+  if (!placed.length) throw new Error('Add at least one signature before exporting')
+  await writeFile(outputPath, await doc.save())
+  return { pages: pages.length, signatures: placed.length, placed }
+}
+
 export { PDFDocument, rgb, degrees, StandardFonts }
