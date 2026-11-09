@@ -146,6 +146,14 @@ handlers.split = async ({ files, options, dir, ctx }) => {
     for (let start = 0; start < pages; start += size) {
       ranges.push(Array.from({ length: Math.min(size, pages - start) }, (_, index) => start + index))
     }
+  } else if (mode === 'groups' && Array.isArray(options.groups)) {
+    for (const group of options.groups) {
+      const list = (Array.isArray(group) ? group : [])
+        .map(Number)
+        .filter((page) => page >= 1 && page <= pages)
+      if (list.length) ranges.push(list.map((page) => page - 1))
+    }
+    if (!ranges.length) throw new Error('Select at least one page to split')
   } else {
     const selected = parsePages(options.ranges, pages)
     if (!selected.length) throw new Error('That page range does not match any page in this document')
