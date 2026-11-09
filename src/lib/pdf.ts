@@ -429,7 +429,13 @@ export async function rasterizePdf(file: File | Blob, options: RasterizeOptions 
       const base = page.getViewport({ scale: 1 })
       const targetWidth = (base.width / 72) * dpi
       const rendered = await pdfjs.renderPageToJpegBytes(page, Math.min(targetWidth, 4000), quality)
-      pages.push({ bytes: rendered.bytes, width: rendered.width, height: rendered.height })
+      pages.push({
+        bytes: rendered.bytes,
+        width: rendered.width,
+        height: rendered.height,
+        pointWidth: base.width,
+        pointHeight: base.height,
+      })
       page.cleanup()
       options.onProgress?.(index, doc.numPages)
     }

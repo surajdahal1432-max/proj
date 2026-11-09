@@ -75,6 +75,7 @@ function usePdfDoc(file: File | null) {
 
   React.useEffect(() => {
     let cancelled = false
+    let loaded: PDFDocumentProxy | null = null
     if (!file) {
       setDoc(null)
       setSizes([])
@@ -85,25 +86,30 @@ function usePdfDoc(file: File | null) {
     setError(null)
     void (async () => {
       try {
-        const loaded = await loadPdfFromFile(file)
+        const pdf = await loadPdfFromFile(file)
+        loaded = pdf
         const collected: { width: number; height: number }[] = []
-        for (let index = 1; index <= loaded.numPages; index += 1) {
-          const page = await loaded.getPage(index)
+        for (let index = 1; index <= pdf.numPages; index += 1) {
+          if (cancelled) return
+          const page = await pdf.getPage(index)
           const viewport = page.getViewport({ scale: 1 })
           collected.push({ width: viewport.width, height: viewport.height })
+          page.cleanup()
         }
         if (!cancelled) {
-          setDoc(loaded)
+          setDoc(pdf)
           setSizes(collected)
         }
       } catch (err) {
         if (!cancelled) setError(errorMessage(err, 'This PDF could not be opened.'))
       } finally {
         if (!cancelled) setLoading(false)
+        if (cancelled) void closePdf(loaded)
       }
     })()
     return () => {
       cancelled = true
+      if (loaded) void closePdf(loaded)
     }
   }, [file])
 

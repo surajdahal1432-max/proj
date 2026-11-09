@@ -158,7 +158,7 @@ export async function renderPageToJpegBytes(
   const base = page.getViewport({ scale: 1 })
   const scale = Math.max(0.15, targetWidth / base.width)
   const canvas = makeCanvas(base.width * scale, base.height * scale)
-  await renderPageIntoCanvas(page, canvas, scale)
+  await renderPageIntoCanvas(page, canvas, scale, 0, 1)
   const dataUrl = canvas.toDataURL('image/jpeg', quality)
   const binary = atob(dataUrl.split(',')[1] ?? '')
   const bytes = new Uint8Array(binary.length)
