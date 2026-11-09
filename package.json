@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "start": "node server.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:pipelines": "tsx --test tests/pipelines.test.ts",
+    "test:all": "node --test tests/*.test.mjs && tsx --test tests/pipelines.test.ts && tsx --test tests/regression.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.1.4",
