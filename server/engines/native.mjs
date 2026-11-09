@@ -233,3 +233,41 @@ export async function imageToPng(input, outDir, ctx = {}) {
 }
 
 export { exists, writeFile }
+
+/**
+ * Permanent redaction.
+ *
+ * Text and vector objects cannot be selectively erased from a PDF stream, so the
+ * page is rasterised by Poppler and rebuilt from pixels. The original text layer,
+ * fonts and annotations are therefore absent from the output — the content is
+ * genuinely gone, not merely covered. Region coordinates are normalised (0..1)
+ * with the origin at the top-left, matching the editor canvas.
+ */
+export async function redactPdf(input, regions, output, { dpi = 150, ctx = {}, workDir } = {}) {
+  const { PDFDocument, rgb } = await import('pdf-lib')
+  const dir = workDir || `${output}-work`
+  const images = await pdfToImages(input, { format: 'png', dpi, outDir: dir, base: 'redact' }, ctx)
+  const source = await PDFDocument.load(await readFile(input), { ignoreEncryption: true })
+  const sizes = source.getPages().map((page) => page.getSize())
+  const doc = await PDFDocument.create()
+  const list = Array.isArray(regions) ? regions : []
+  for (let index = 0; index < images.length; index += 1) {
+    if (ctx.signal?.aborted) throw Object.assign(new Error('Cancelled'), { name: 'AbortError' })
+    const size = sizes[index] || sizes[sizes.length - 1] || { width: 595.28, height: 841.89 }
+    const page = doc.addPage([size.width, size.height])
+    const png = await doc.embedPng(await readFile(images[index]))
+    page.drawImage(png, { x: 0, y: 0, width: size.width, height: size.height })
+    const pageRegions = list.filter((region) => (Number(region.page) || index + 1) === index + 1)
+    for (const region of pageRegions) {
+      const width = Math.min(1, Math.max(0, Number(region.width) || 0)) * size.width
+      const height = Math.min(1, Math.max(0, Number(region.height) || 0)) * size.height
+      const x = Math.min(1, Math.max(0, Number(region.x) || 0)) * size.width
+      const top = Math.min(1, Math.max(0, Number(region.y) || 0)) * size.height
+      if (width < 1 || height < 1) continue
+      page.drawRectangle({ x, y: size.height - top - height, width, height, color: rgb(0, 0, 0) })
+    }
+    ctx.onProgress?.(((index + 1) / images.length) * 95, 'Redacting pages')
+  }
+  await writeFile(output, await doc.save())
+  return { pages: images.length, regions: list.length, textLayerRemoved: true, method: 'rasterise-and-cover' }
+}

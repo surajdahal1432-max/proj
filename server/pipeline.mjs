@@ -422,9 +422,10 @@ handlers.watermark = async ({ files, options, dir, ctx }) => {
 handlers.redact = async ({ files, options, dir, ctx }) => {
   requireFiles(files, 1)
   const target = out(dir, `${safeBase(files[0].name)}-redacted`, 'pdf')
-  const result = await pdfEngine.redact(files[0].path, options.regions || [], target.path, {
+  const result = await native.redactPdf(files[0].path, options.regions || [], target.path, {
     dpi: options.dpi,
     ctx,
+    workDir: join(dir, 'redact-work'),
   })
   return { outputs: [target], meta: result }
 }
