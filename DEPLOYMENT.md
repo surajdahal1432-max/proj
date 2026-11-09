@@ -1,130 +1,80 @@
-# Deployment
+# Folio Deployment
 
-Folio ships as a static Vite build served by a small Node HTTP server (`server.mjs`). There is no
-application backend and no database requirement: every tool runs in the browser.
+Folio has **one** processing architecture. There is no local/cloud mode switch: the browser is a
+client, and every document operation runs on Folio's own server.
 
-## 1. Build and run locally
+```
+User → Folio frontend (React/Vite SPA) → authenticated job API → native engine → validated output → download
+```
+
+## Runtime image
+
+`Dockerfile` builds the SPA, then ships a single runtime stage (`node:26-alpine`) containing the
+engines that actually process documents:
+
+| Engine | Package | Used by |
+|---|---|---|
+| qpdf | `qpdf` | compress, repair, encrypt, decrypt, structural page work |
+| poppler-utils | `poppler-utils` (`pdftoppm`, `pdftotext`, `pdfinfo`) | pdf-to-jpg/png, redact rasterisation, text extraction, page counts |
+| Tesseract | `tesseract-ocr`, `tesseract-ocr-data-eng` | ocr |
+| LibreOffice | `libreoffice-writer`, `-calc`, `-impress` | Office/HTML/Markdown/webpage → PDF, PDF → Office |
+| ImageMagick | `imagemagick` | image normalisation for image-to-pdf |
+| pdf-lib + first-party writers | npm | merge, extract, rearrange, rotate, watermark, forms, sign, overlays |
+
+`USER node` drops privileges; LibreOffice and Tesseract need a writable `HOME`, set to `/home/node`.
+
+## Environment variables
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `3000` | HTTP port (the deployment port is 3000) |
+| `FOLIO_ROOT` | `/app/dist` | Static SPA directory |
+| `FOLIO_JOB_DIR` | `/tmp/folio-jobs` | Isolated per-job temporary directories |
+| `FOLIO_HEAVY_CONCURRENCY` | `1` | Simultaneous LibreOffice/Tesseract/poppler jobs |
+| `FOLIO_LIGHT_CONCURRENCY` | `2` | Simultaneous pdf-lib/qpdf jobs |
+| `FOLIO_JOB_TIMEOUT_MS` | `180000` | Whole-job deadline |
+| `FOLIO_ENGINE_TIMEOUT_MS` | `120000` | Single engine invocation deadline |
+| `FOLIO_SESSION_SECRET` | random per boot | Optional; pins the session signing key |
+
+Limits enforced by the API: **40 MB per file**, **120 MB per job**, abandoned jobs expire after
+**15 minutes**. Set these through the platform environment, never in source.
+
+## Resource requirements
+
+The verified entitlement is **1 GB RAM / 1 vCPU** per app. Native engines are therefore serialised:
+one heavy engine at a time, two light jobs in parallel. A LibreOffice conversion of a normal Word
+document takes roughly 1–2 s of engine time in this image; large presentations and OCR are the
+slowest paths and are bounded by the 120 s engine deadline.
+
+If you need concurrent heavy processing, run a separate worker service on
+[qoddi.com](https://qoddi.com) from branch `appjet` with 2 vCPU / 2–4 GB and point the frontend's
+`/api` calls at it. Hosting cost there is the provider's plan price; nothing in Folio requires a paid
+document API.
+
+## Health and verification
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | `{ ok, ...stats, engines }` — process and engine availability |
+| `GET /api/engines` | `{ ready, unavailable, engines }` — per-tool readiness |
+
+After deploying, verify:
 
 ```bash
-npm install
-npm run build      # prebuild copies PDF.js fonts/cmaps/wasm/iccs into public/pdfjs, then tsc + vite build
-npm start          # node server.mjs
+curl -s https://<app>/api/health | jq '.ok, .engines'
+curl -s https://<app>/api/engines | jq '.ready | length, .unavailable'
+npm run test:server        # real files through the live job API, locally
 ```
 
-- Default port: **3000** (`PORT` env var overrides).
-- The server binds `0.0.0.0` so it is reachable from outside the container.
-- `GET /tool/merge` and other SPA routes fall back to `index.html`.
-- A missing static asset with a file extension returns **404** (never HTML), and a malformed path
-  returns **400** without crashing the process.
+`npm run test:server` boots the server on a free port and drives create → upload → start → poll →
+download for merge, extract, rotate, split, pdf-to-text, word-to-pdf and pdf-to-jpg, reopening every
+output with `pdf-lib`.
 
-## 2. Container
+## Operational notes
 
-The `Dockerfile` is a two-stage `node:26-alpine` build (Node 26 is the current LTS, supported until
-April 2029):
-
-1. **build** — installs dependencies, runs `npm run build`, producing `dist/`.
-2. **runtime** — copies `dist/`, `server.mjs` and `package.json`, sets `PORT=3000`, `EXPOSE 3000`,
-   `CMD ["node", "server.mjs"]`, and runs as a non-root user after upgrading Alpine packages.
-
-No native engines are installed. The image stays small and cold-starts quickly.
-
-## 3. AppJet hosting
-
-Deployment is automatic on the `appjet` branch. Hosting entitlement for this account: **1 GB RAM,
-1 vCPU, unlimited traffic** per app (Free plan).
-
-That is ample for a browser-side application, because processing happens on the user's device. It is
-**not** sufficient for LibreOffice/qpdf/Chromium workers: those need their own service with 1–2 GB
-RAM per concurrent conversion (see `ENGINE_REGISTRY.md`). Do not add them to this image.
-
-Custom domains and persistent disks are not part of the Free plan; they require Starter ($5/month) or
-Pro in Settings → Billing.
-
-For large production traffic, deploy the same branch to https://qoddi.com (select branch `appjet`).
-
-## 4. Environment variables
-
-All are optional. The application is fully functional with none set.
-
-| Variable | Purpose | Default when unset |
-|---|---|---|
-| `PORT` | Server port | `3000` |
-| `VITE_SUPABASE_URL` | Enables optional cloud sync (auth + settings + job metadata) | cloud sync disabled |
-| `VITE_SUPABASE_ANON_KEY` | Public anon key for the above | cloud sync disabled |
-
-`VITE_*` values are baked in at build time and are public. Never put a service-role key in a `VITE_*`
-variable.
-
-## 5. Optional Supabase schema
-
-Run this in the Supabase SQL editor before enabling cloud sync. It stores **preferences and job
-metadata only** — there is no document table and no storage bucket.
-
-```sql
-create table if not exists public.folio_settings (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  theme text not null default 'light' check (theme in ('light','dark')),
-  strict_local_mode boolean not null default true,
-  ollama_host text not null default 'http://localhost:11434',
-  ollama_model text not null default 'llama3',
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.folio_jobs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  tool_id text not null,
-  status text not null check (status in ('queued','running','done','failed')),
-  page_count integer,
-  output_count integer,
-  started_at timestamptz not null default now(),
-  finished_at timestamptz,
-  error_code text
-);
-
-alter table public.folio_settings enable row level security;
-alter table public.folio_jobs enable row level security;
-
-create policy "own settings" on public.folio_settings
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "own jobs" on public.folio_jobs
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create index if not exists folio_jobs_user_started
-  on public.folio_jobs (user_id, started_at desc);
-```
-
-Notes:
-
-- RLS is mandatory. Without it the anon key would expose every row.
-- `folio_jobs` deliberately has no file-name, page-text or document column.
-- Row ownership is `auth.uid() = user_id`, so one user cannot read another's rows.
-
-## 6. Document worker (not deployed)
-
-Tools that need native engines are marked `side: 'document-worker'` in `src/lib/engines.ts` and are
-listed in `ENGINE_REGISTRY.md`. Enabling one requires a separate service:
-
-- **Resource profile:** 1 vCPU, 1–2 GB RAM, 30 s per-document timeout, 50 MB upload cap.
-- **Isolation:** one temporary directory per request, deleted in `finally`; abandoned directories swept
-  after 5 minutes.
-- **Auth:** short-lived signed request token; no unauthenticated endpoint.
-- **Retention:** zero. Input and output are deleted immediately after the response is streamed.
-- **Licensing:** add the engine to `THIRD_PARTY_LICENSES.md` first; class C/D engines need written
-  approval (veraPDF is GPL-3.0 + MPL-2.0 and must not be added without it).
-- **Strict Local Mode:** the frontend must refuse worker calls while the mode is on, and say so in the
-  UI instead of silently switching to remote processing.
-
-Until such a worker exists, those tools state their limitation in the UI and no tool pretends to use
-an engine it does not have.
-
-## 7. Health and troubleshooting
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| 502 from the platform | server bound to `localhost`, or `PORT` mismatch | bind `0.0.0.0`, keep `EXPOSE`/`PORT` aligned with the configured port |
-| Fonts/cmaps 404 during PDF rendering | `public/pdfjs` not generated | run `npm run build` (prebuild copies the assets) |
-| OCR never completes | language data blocked by the browser/network | allow `cdn.jsdelivr.net` for `tessdata`, or self-host the trained data |
-| Cloud sync returns 404 | schema not applied | run the SQL in section 5 |
-| Cloud sync refuses to run | Strict Local Mode is on | that is intended — turn it off in the header |
+- Temporary files live only under `FOLIO_JOB_DIR` and are deleted after download, on cancel, and by
+  the expiry sweep. No document is written to the SPA directory or to any database.
+- The server serves the SPA for unknown extension-less routes and returns 404 for missing files with
+  an extension; malformed paths return 400 instead of crashing the process.
+- Rolling out a new build replaces the container, so in-flight jobs are lost; the client reports the
+  failed status instead of hanging.
