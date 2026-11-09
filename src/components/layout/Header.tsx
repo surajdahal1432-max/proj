@@ -261,12 +261,12 @@ export function Footer() {
             <span className="text-base font-bold">Folio</span>
           </Link>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            A local-first PDF studio. No uploads, no paywalls, no watermarks — just fast document tooling that runs in
-            your browser.
+            A private-by-default PDF studio. No paywalls, no watermarks — documents are processed by Folio&apos;s own
+            server and deleted right after your download.
           </p>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Check className="h-3.5 w-3.5 text-emerald-500" />
-            {localMode ? 'Strict local-only mode enabled' : 'Cloud workers available'}          </div>
+            Documents are processed by Folio&apos;s server, then deleted.          </div>
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Popular tools</p>
