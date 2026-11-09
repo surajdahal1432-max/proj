@@ -4,7 +4,6 @@ import { buildDocx, buildPptx, parseDocxFile, parseHtmlToBlocks, parseMarkdown, 
 import { renderDocxToPdf } from './docxRender'
 import { buildXlsx, readXlsx, rowsToCsv, type CellValue } from './xlsx'
 import { baseName, downloadBlob } from './utils'
-import { closePdf } from './pdfjs'
 
 export interface ConversionOptions {
   password?: string
